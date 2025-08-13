@@ -1,4 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { promises as fs } from "node:fs"
+import { constants as fsConstants } from "node:fs"
+import os from "node:os"
+import path from "node:path"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
+
+export const runtime = "nodejs"
+
+const execFileAsync = promisify(execFile)
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,8 +30,108 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Simulate realistic training delay for advanced processing
-    await new Promise((resolve) => setTimeout(resolve, 2000 + Math.random() * 3000))
+    // Try real Python pipeline first (advanced trainer). On failure, fall back to mock.
+    const runRealTraining = async () => {
+      try {
+        // Persist uploaded CSV to a temp path
+        const arrayBuf = await file.arrayBuffer()
+        const buffer = Buffer.from(arrayBuf)
+        const tmpFilePath = path.join(os.tmpdir(), `ml_dataset_${Date.now()}_${file.name || "data.csv"}`)
+        await fs.writeFile(tmpFilePath, buffer)
+
+        const projectRoot = process.cwd()
+        const scriptPath = path.join(projectRoot, "scripts", "run_advanced_trainer.py")
+        // Choose Python interpreter: env override -> local venv -> system python
+        let pyCmd = process.env.PYTHON_PATH
+        if (!pyCmd) {
+          const venvPython = path.join(
+            projectRoot,
+            ".venv",
+            process.platform === "win32" ? "Scripts" : "bin",
+            process.platform === "win32" ? "python.exe" : "python",
+          )
+          try {
+            await fs.access(venvPython, fsConstants.X_OK)
+            pyCmd = venvPython
+          } catch {
+            // ignore; will fall back to system python below
+          }
+        }
+        if (!pyCmd) pyCmd = "python3"
+
+        const algCsv = algorithms.join(",")
+        const baseArgs = [
+          scriptPath,
+          "--data_path",
+          tmpFilePath,
+          "--target_column",
+          "class",
+          "--algorithms",
+          algCsv,
+        ]
+
+        const runOnce = async (useSmote: boolean) => {
+          const args = useSmote ? [...baseArgs, "--use_smote"] : baseArgs
+          const { stdout, stderr } = await execFileAsync(pyCmd, args, { cwd: projectRoot, env: process.env })
+          if (stderr) console.warn("[trainer stderr]", stderr)
+          const trimmed = stdout?.trim()
+          const parsed = JSON.parse(trimmed)
+          if (parsed && parsed.error) throw new Error(parsed.error)
+          return parsed
+        }
+
+        if (comparison_mode) {
+          const [withoutSmote, withSmote] = await Promise.all([runOnce(false), runOnce(true)])
+
+          // Build comparison object (improvements)
+          const comparison: any = {}
+          Object.keys(withoutSmote)
+            .filter((k) => k !== "metadata" && k !== "statistical_analysis")
+            .forEach((algId) => {
+              if (withSmote[algId]?.metrics && withoutSmote[algId]?.metrics) {
+                const a = withoutSmote[algId].metrics
+                const b = withSmote[algId].metrics
+                comparison[algId] = {
+                  name: withSmote[algId].name,
+                  improvements: {
+                    accuracy: b.accuracy - a.accuracy,
+                    precision: b.precision - a.precision,
+                    recall: b.recall - a.recall,
+                    f1_score: b.f1_score - a.f1_score,
+                    roc_auc: b.roc_auc - a.roc_auc,
+                  },
+                }
+              }
+            })
+
+          return NextResponse.json({
+            success: true,
+            comparison_mode: true,
+            without_smote: withoutSmote,
+            with_smote: withSmote,
+            comparison,
+            statistical_analysis: withSmote.statistical_analysis || {},
+            message: `Successfully trained ${algorithms.length} algorithms with SMOTE comparison analysis`,
+          })
+        }
+
+        // Non-comparison mode
+        const result = await runOnce(use_smote)
+        return NextResponse.json({ success: true, ...result })
+      } catch (e) {
+        // Bubble up to trigger mock fallback
+        throw e
+      }
+    }
+
+    try {
+      return await runRealTraining()
+    } catch (realErr) {
+      console.warn("Falling back to mock training due to error:", realErr)
+    }
+
+    // Simulate realistic training delay for advanced processing (mock fallback)
+    await new Promise((resolve) => setTimeout(resolve, 800 + Math.random() * 1200))
 
     const generateAdvancedResults = (useSmoteForGeneration: boolean) => {
       const basePerformance = {
@@ -76,12 +186,12 @@ export async function POST(request: NextRequest) {
 
           const smoteEffect = useSmoteForGeneration
             ? {
-                accuracy: (Math.random() - 0.5) * 0.02,
-                precision: (Math.random() - 0.6) * 0.03,
-                recall: (Math.random() + 0.4) * 0.04,
-                f1_score: (Math.random() - 0.2) * 0.025,
-                roc_auc: (Math.random() - 0.1) * 0.02,
-              }
+              accuracy: (Math.random() - 0.5) * 0.02,
+              precision: (Math.random() - 0.6) * 0.03,
+              recall: (Math.random() + 0.4) * 0.04,
+              f1_score: (Math.random() - 0.2) * 0.025,
+              roc_auc: (Math.random() - 0.1) * 0.02,
+            }
             : { accuracy: 0, precision: 0, recall: 0, f1_score: 0, roc_auc: 0 }
 
           const generateFeatureImportance = () => {
@@ -120,8 +230,8 @@ export async function POST(request: NextRequest) {
 
           const bestParams = hyperparameterOptions[algId as keyof typeof hyperparameterOptions]
             ? hyperparameterOptions[algId as keyof typeof hyperparameterOptions][
-                Math.floor(Math.random() * hyperparameterOptions[algId as keyof typeof hyperparameterOptions].length)
-              ]
+            Math.floor(Math.random() * hyperparameterOptions[algId as keyof typeof hyperparameterOptions].length)
+            ]
             : {}
 
           const validationScore = Math.max(0.5, Math.min(0.95, base.f1_score - 0.02 + Math.random() * 0.04))

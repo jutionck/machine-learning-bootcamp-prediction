@@ -11,7 +11,6 @@ from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 from imblearn.over_sampling import SMOTE
 import shap
-from scipy.stats import mcnemar
 import json
 import sys
 import warnings
@@ -82,6 +81,12 @@ class AdvancedMLBootcampPredictor:
         self.label_encoder = LabelEncoder()
         self.feature_names = []
         
+    def _counts_dict(self, labels):
+        """Return counts as a JSON-serializable dict with native int keys/values."""
+        uniq, counts = np.unique(labels, return_counts=True)
+        # Ensure native Python ints for JSON compatibility (avoid numpy.int64 keys)
+        return {int(u): int(c) for u, c in zip(uniq.tolist(), counts.tolist())}
+
     def stratified_split(self, X, y, train_size=0.9, val_size=0.05, test_size=0.05):
         """
         Perform stratified splitting: 90% train, 5% validation, 5% test
@@ -378,13 +383,14 @@ class AdvancedMLBootcampPredictor:
                 'algorithms_trained': len(selected_algorithms),
                 'feature_names': self.feature_names,
                 'class_distribution': {
-                    'train': dict(zip(*np.unique(y_train, return_counts=True))),
-                    'test': dict(zip(*np.unique(y_test, return_counts=True)))
+                    'train': self._counts_dict(y_train),
+                    'test': self._counts_dict(y_test)
                 }
             }
-            
-            results['statistical_analysis'] = statistical_comparisons
-            
+
+            # Ensure keys in statistical_comparisons are strings
+            results['statistical_analysis'] = {str(k): v for k, v in statistical_comparisons.items()}
+
             return results
             
         except Exception as e:

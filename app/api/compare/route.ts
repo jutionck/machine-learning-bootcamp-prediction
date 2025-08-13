@@ -25,12 +25,12 @@ export async function POST(request: NextRequest) {
           // SMOTE typically improves recall but may slightly reduce precision
           const smoteEffect = useSmote
             ? {
-                accuracy: (Math.random() - 0.5) * 0.02, // Small random change
-                precision: (Math.random() - 0.7) * 0.03, // Slight tendency to decrease
-                recall: (Math.random() + 0.3) * 0.04, // Tendency to increase
-                f1_score: (Math.random() - 0.3) * 0.025, // Mixed effect
-                roc_auc: (Math.random() - 0.2) * 0.02, // Slight tendency to improve
-              }
+              accuracy: (Math.random() - 0.5) * 0.02, // Small random change
+              precision: (Math.random() - 0.7) * 0.03, // Slight tendency to decrease
+              recall: (Math.random() + 0.3) * 0.04, // Tendency to increase
+              f1_score: (Math.random() - 0.3) * 0.025, // Mixed effect
+              roc_auc: (Math.random() - 0.2) * 0.02, // Slight tendency to improve
+            }
             : { accuracy: 0, precision: 0, recall: 0, f1_score: 0, roc_auc: 0 }
 
           results[algId] = {

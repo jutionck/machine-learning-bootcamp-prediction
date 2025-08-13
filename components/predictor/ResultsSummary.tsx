@@ -1,0 +1,362 @@
+'use client';
+
+import React from 'react';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import { Trophy } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+} from 'recharts';
+import type {
+  AdvancedMetadata,
+  ComparisonResults,
+  StatisticalAnalysisMap,
+  TrainingResultsMap,
+} from '@/lib/types';
+import { metricNames } from '@/lib/constants';
+import { getAlgorithmResults } from '@/lib/results';
+
+type Props = {
+  results?: TrainingResultsMap | null;
+  comparisonResults?: ComparisonResults | null;
+  metadata?: AdvancedMetadata | null;
+  statisticalAnalysis?: StatisticalAnalysisMap | null;
+};
+
+const format = (v: number) => (Number.isFinite(v) ? v.toFixed(4) : '-');
+
+export default function ResultsSummary({
+  results,
+  comparisonResults,
+  metadata,
+  statisticalAnalysis,
+}: Props) {
+  const isComparison = Boolean(comparisonResults);
+  const algMap = results ? getAlgorithmResults(results) : {};
+  const algArray = Object.entries(algMap);
+  const bestByAccuracy = algArray.length
+    ? algArray.reduce((best, cur) =>
+        cur[1].metrics.accuracy > best[1].metrics.accuracy ? cur : best
+      )
+    : null;
+
+  return (
+    <div className='space-y-6'>
+      {!isComparison && bestByAccuracy && (
+        <Card className='border-0 shadow-none overflow-hidden bg-emerald-500 text-white'>
+          <div className='p-5'>
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-3'>
+                <div className='p-2.5 rounded-lg bg-white/20 text-white'>
+                  <Trophy className='h-5 w-5' />
+                </div>
+                <div>
+                  <div className='text-sm text-white/80 font-semibold'>
+                    Best Performing Algorithm
+                  </div>
+                  <div className='text-xl font-serif font-bold text-white'>
+                    {bestByAccuracy[1].name}
+                  </div>
+                </div>
+              </div>
+              <div className='text-right'>
+                <div className='text-xs uppercase text-white/80'>Accuracy</div>
+                <div className='text-2xl font-extrabold text-white'>
+                  {(bestByAccuracy[1].metrics.accuracy * 100).toFixed(1)}%
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {!isComparison && algArray.length > 0 && (
+        <Card className='shadow-lg'>
+          <CardHeader>
+            <CardTitle>Performance Comparison</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+              {algArray.map(([id, r]) => {
+                const data = [
+                  { metric: 'Accuracy', value: r.metrics.accuracy * 100 },
+                  { metric: 'Precision', value: r.metrics.precision * 100 },
+                  { metric: 'Recall', value: r.metrics.recall * 100 },
+                  { metric: 'F1-Score', value: r.metrics.f1_score * 100 },
+                  { metric: 'ROC-AUC', value: r.metrics.roc_auc * 100 },
+                ];
+                return (
+                  <div
+                    key={id}
+                    className='p-3 border rounded-xl bg-white/60 dark:bg-slate-800/60'
+                  >
+                    <div className='text-sm font-semibold mb-2'>{r.name}</div>
+                    <div className='h-48'>
+                      <ResponsiveContainer width='100%' height='100%'>
+                        <RadarChart
+                          data={data}
+                          cx='50%'
+                          cy='50%'
+                          outerRadius='80%'
+                        >
+                          <PolarGrid />
+                          <PolarAngleAxis
+                            dataKey='metric'
+                            tick={{ fontSize: 10 }}
+                          />
+                          <PolarRadiusAxis
+                            angle={30}
+                            domain={[0, 100]}
+                            tick={{ fontSize: 10 }}
+                          />
+                          <Radar
+                            name={r.name}
+                            dataKey='value'
+                            stroke='#22c55e'
+                            fill='#22c55e'
+                            fillOpacity={0.35}
+                          />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className='shadow-lg'>
+        <CardHeader>
+          <CardTitle>
+            {isComparison ? 'Training Report' : 'Detailed Results'}
+          </CardTitle>
+          {metadata && (
+            <CardDescription>
+              Dataset {metadata.dataset_shape?.[0]} rows ×{' '}
+              {metadata.dataset_shape?.[1]} cols • Train{' '}
+              {metadata.train_shape?.[0]}, Val {metadata.validation_shape?.[0]},
+              Test {metadata.test_shape?.[0]} • SMOTE{' '}
+              {metadata.use_smote ? 'Yes' : 'No'}
+            </CardDescription>
+          )}
+        </CardHeader>
+        <CardContent>
+          {!isComparison && results && (
+            <div className='overflow-x-auto'>
+              <table className='w-full text-sm border-collapse'>
+                <thead>
+                  <tr className='border-b'>
+                    <th className='text-left p-2'>Algorithm</th>
+                    <th className='text-left p-2'>Type</th>
+                    {Object.keys(metricNames).map((k) => (
+                      <th key={k} className='text-left p-2'>
+                        {metricNames[k as keyof typeof metricNames]}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.values(getAlgorithmResults(results)).map((r) => (
+                    <tr key={r.name} className='border-b'>
+                      <td className='p-2 whitespace-nowrap'>{r.name}</td>
+                      <td className='p-2 whitespace-nowrap capitalize'>
+                        {r.type}
+                      </td>
+                      <td className='p-2'>{format(r.metrics.accuracy)}</td>
+                      <td className='p-2'>{format(r.metrics.precision)}</td>
+                      <td className='p-2'>{format(r.metrics.recall)}</td>
+                      <td className='p-2'>{format(r.metrics.f1_score)}</td>
+                      <td className='p-2'>{format(r.metrics.roc_auc)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {isComparison && comparisonResults && (
+            <div className='space-y-6'>
+              <div className='overflow-x-auto'>
+                <h4 className='font-semibold mb-2'>Without SMOTE</h4>
+                <table className='w-full text-sm border-collapse'>
+                  <thead>
+                    <tr className='border-b'>
+                      <th className='text-left p-2'>Algorithm</th>
+                      <th className='text-left p-2'>Type</th>
+                      {Object.keys(metricNames).map((k) => (
+                        <th key={k} className='text-left p-2'>
+                          {metricNames[k as keyof typeof metricNames]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(comparisonResults.without_smote).map(
+                      ([id, r]) =>
+                        r?.metrics ? (
+                          <tr key={`no-${id}`} className='border-b'>
+                            <td className='p-2 whitespace-nowrap'>{r.name}</td>
+                            <td className='p-2 whitespace-nowrap capitalize'>
+                              {r.type}
+                            </td>
+                            <td className='p-2'>
+                              {format(r.metrics.accuracy)}
+                            </td>
+                            <td className='p-2'>
+                              {format(r.metrics.precision)}
+                            </td>
+                            <td className='p-2'>{format(r.metrics.recall)}</td>
+                            <td className='p-2'>
+                              {format(r.metrics.f1_score)}
+                            </td>
+                            <td className='p-2'>{format(r.metrics.roc_auc)}</td>
+                          </tr>
+                        ) : null
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className='overflow-x-auto'>
+                <h4 className='font-semibold mb-2'>With SMOTE</h4>
+                <table className='w-full text-sm border-collapse'>
+                  <thead>
+                    <tr className='border-b'>
+                      <th className='text-left p-2'>Algorithm</th>
+                      <th className='text-left p-2'>Type</th>
+                      {Object.keys(metricNames).map((k) => (
+                        <th key={k} className='text-left p-2'>
+                          {metricNames[k as keyof typeof metricNames]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(comparisonResults.with_smote).map(
+                      ([id, r]) =>
+                        r?.metrics ? (
+                          <tr key={`sm-${id}`} className='border-b'>
+                            <td className='p-2 whitespace-nowrap'>{r.name}</td>
+                            <td className='p-2 whitespace-nowrap capitalize'>
+                              {r.type}
+                            </td>
+                            <td className='p-2'>
+                              {format(r.metrics.accuracy)}
+                            </td>
+                            <td className='p-2'>
+                              {format(r.metrics.precision)}
+                            </td>
+                            <td className='p-2'>{format(r.metrics.recall)}</td>
+                            <td className='p-2'>
+                              {format(r.metrics.f1_score)}
+                            </td>
+                            <td className='p-2'>{format(r.metrics.roc_auc)}</td>
+                          </tr>
+                        ) : null
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {comparisonResults.comparison && (
+                <div className='overflow-x-auto'>
+                  <h4 className='font-semibold mb-2'>
+                    Improvements (With SMOTE - Without SMOTE)
+                  </h4>
+                  <table className='w-full text-sm border-collapse'>
+                    <thead>
+                      <tr className='border-b'>
+                        <th className='text-left p-2'>Algorithm</th>
+                        {Object.keys(metricNames).map((k) => (
+                          <th key={k} className='text-left p-2'>
+                            {metricNames[k as keyof typeof metricNames]}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(comparisonResults.comparison).map(
+                        ([id, cmp]) => (
+                          <tr key={`imp-${id}`} className='border-b'>
+                            <td className='p-2 whitespace-nowrap'>
+                              {cmp.name}
+                            </td>
+                            <td className='p-2'>
+                              {format(cmp.improvements.accuracy)}
+                            </td>
+                            <td className='p-2'>
+                              {format(cmp.improvements.precision)}
+                            </td>
+                            <td className='p-2'>
+                              {format(cmp.improvements.recall)}
+                            </td>
+                            <td className='p-2'>
+                              {format(cmp.improvements.f1_score)}
+                            </td>
+                            <td className='p-2'>
+                              {format(cmp.improvements.roc_auc)}
+                            </td>
+                          </tr>
+                        )
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {statisticalAnalysis && Object.keys(statisticalAnalysis).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Statistical Analysis (McNemar)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='overflow-x-auto'>
+              <table className='w-full text-sm border-collapse'>
+                <thead>
+                  <tr className='border-b'>
+                    <th className='text-left p-2'>Comparison</th>
+                    <th className='text-left p-2'>Statistic</th>
+                    <th className='text-left p-2'>p-value</th>
+                    <th className='text-left p-2'>Significant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(statisticalAnalysis).map(([k, v]) => (
+                    <tr key={k} className='border-b'>
+                      <td className='p-2 whitespace-nowrap'>
+                        {v.conventional_algorithm} vs {v.boosting_algorithm}
+                      </td>
+                      <td className='p-2'>
+                        {format(v.mcnemar_test.statistic)}
+                      </td>
+                      <td className='p-2'>{format(v.mcnemar_test.p_value)}</td>
+                      <td className='p-2'>
+                        {v.mcnemar_test.significant ? 'Yes' : 'No'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
