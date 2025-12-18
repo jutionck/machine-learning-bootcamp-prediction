@@ -15,6 +15,7 @@ import ExportPanel from '@/components/predictor/ExportPanel';
 import ResultsSummary from '@/components/predictor/ResultsSummary';
 import DatasetConfigCard from '@/components/predictor/DatasetConfigCard';
 import PredictionPanel from '@/components/predictor/PredictionPanel';
+import UsageGuide from '@/components/predictor/UsageGuide';
 import { getAlgorithmResults as extractAlgoResults } from '@/lib/results';
 
 type AdvancedTrainingResults = TrainingResultsMap;
@@ -526,6 +527,9 @@ export default function MLBootcampPredictor() {
                 Transforming Data into Knowledge
               </p>
             </div>
+          </div>
+          <div className="mt-4">
+             <UsageGuide />
           </div>
         </div>
 
