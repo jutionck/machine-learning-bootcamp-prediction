@@ -5,7 +5,26 @@ export async function POST(request: NextRequest) {
     const { participant_data, trained_models } = await request.json()
 
     // Simulate prediction logic (in real implementation, you'd use your trained models)
-    const predictions: { [key: string]: { prediction: string; confidence: number } } = {}
+    // NOTE: Response shape is aligned with the UI (PredictionPanel) which expects an array:
+    // { predictions: [{ algorithm, modelId, prediction, probability }] }
+    const predictionsByModel: {
+      [key: string]: { prediction: string; probability: number }
+    } = {}
+    const predictions: Array<{
+      algorithm: string
+      modelId: string
+      prediction: "pass" | "fail"
+      probability: number
+    }> = []
+
+    const algorithmLabel: Record<string, string> = {
+      logistic: "Logistic Regression",
+      decision_tree: "Decision Tree",
+      knn: "KNN",
+      svm: "SVM",
+      adaboost: "AdaBoost",
+      xgboost: "XGBoost",
+    }
 
     // Mock prediction logic based on participant data
     const logicalScore = Number.parseInt(participant_data.logical_test_score)
@@ -32,7 +51,9 @@ export async function POST(request: NextRequest) {
     if (age >= 25 && age <= 35) baseSuccessProb += 0.05
 
     // Generate predictions for each trained model with slight variations
-    trained_models.forEach((modelId: string) => {
+    const modelIds: string[] = Array.isArray(trained_models) ? trained_models : []
+
+    modelIds.forEach((modelId: string) => {
       let modelProb = baseSuccessProb
 
       // Add model-specific variations
@@ -60,15 +81,23 @@ export async function POST(request: NextRequest) {
       // Ensure probability is within bounds
       modelProb = Math.max(0.1, Math.min(0.9, modelProb))
 
-      predictions[modelId] = {
-        prediction: modelProb > 0.5 ? "pass" : "fail",
-        confidence: modelProb > 0.5 ? modelProb : 1 - modelProb,
+      const prediction = modelProb > 0.5 ? "pass" : "fail"
+      predictionsByModel[modelId] = {
+        prediction,
+        probability: modelProb,
       }
+      predictions.push({
+        algorithm: algorithmLabel[modelId] ?? modelId,
+        modelId,
+        prediction,
+        probability: modelProb,
+      })
     })
 
     return NextResponse.json({
       success: true,
       predictions,
+      predictions_by_model: predictionsByModel,
       participant_summary: {
         logical_score: logicalScore,
         tech_score: techScore,

@@ -8,7 +8,8 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { Trophy } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Trophy, ArrowRight, Minus } from 'lucide-react';
 import {
   ResponsiveContainer,
   RadarChart,
@@ -49,6 +50,24 @@ export default function ResultsSummary({
         cur[1].metrics.accuracy > best[1].metrics.accuracy ? cur : best
       )
     : null;
+
+  const getWinner = (withoutRes: any, withRes: any) => {
+    if (!withoutRes?.metrics || !withRes?.metrics) return null;
+    // Compare mainly by accuracy, then f1_score if tie
+    const accDiff = withRes.metrics.accuracy - withoutRes.metrics.accuracy;
+    
+    if (Math.abs(accDiff) < 0.0001) {
+         const f1Diff = withRes.metrics.f1_score - withoutRes.metrics.f1_score;
+         if (Math.abs(f1Diff) < 0.0001) return { winner: 'tie', label: 'Tie' };
+         return f1Diff > 0 
+            ? { winner: 'with_smote', label: 'With SMOTE', reason: 'Higher F1' }
+            : { winner: 'without_smote', label: 'Without SMOTE', reason: 'Higher F1' };
+    }
+    
+    return accDiff > 0
+      ? { winner: 'with_smote', label: 'With SMOTE', reason: 'Higher Accuracy' }
+      : { winner: 'without_smote', label: 'Without SMOTE', reason: 'Higher Accuracy' };
+  };
 
   return (
     <div className='space-y-6'>
@@ -187,7 +206,64 @@ export default function ResultsSummary({
           )}
 
           {isComparison && comparisonResults && (
-            <div className='space-y-6'>
+            <div className='space-y-8'>
+              <div className='overflow-x-auto'>
+                <h4 className='font-serif font-bold text-lg mb-4 flex items-center gap-2'>
+                   <Trophy className="h-5 w-5 text-yellow-500" />
+                   Head-to-Head Comparison
+                </h4>
+                <table className='w-full text-sm border-collapse'>
+                  <thead>
+                    <tr className='border-b-2 border-slate-100 dark:border-slate-800'>
+                      <th className='text-left p-3 font-semibold text-slate-600 dark:text-slate-400'>Algorithm</th>
+                      <th className='text-left p-3 font-semibold text-slate-600 dark:text-slate-400'>Without SMOTE</th>
+                      <th className='text-left p-3 font-semibold text-slate-600 dark:text-slate-400'>With SMOTE</th>
+                      <th className='text-left p-3 font-semibold text-slate-600 dark:text-slate-400'>Winner</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.keys(comparisonResults.without_smote).map(id => {
+                        const wOut = comparisonResults.without_smote[id];
+                        const wIn = comparisonResults.with_smote[id];
+                        if (!wOut || !wIn || !wOut.metrics || !wIn.metrics) return null;
+                        const win = getWinner(wOut, wIn);
+                        
+                        return (
+                            <tr key={id} className='border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors'>
+                            <td className='p-3 font-medium'>{wOut.name}</td>
+                            <td className='p-3 font-mono text-slate-600 dark:text-slate-400'>
+                                {format(wOut.metrics.accuracy)}
+                            </td>
+                            <td className='p-3 font-mono text-slate-600 dark:text-slate-400'>
+                                {format(wIn.metrics.accuracy)}
+                            </td>
+                            <td className='p-3'>
+                                {win?.winner === 'tie' && (
+                                    <Badge variant="outline" className="gap-1.5 text-slate-500">
+                                        <Minus className="h-3.5 w-3.5" />
+                                        Draw
+                                    </Badge>
+                                )}
+                                {win?.winner === 'with_smote' && (
+                                    <Badge className="bg-emerald-500 hover:bg-emerald-600 gap-1.5">
+                                        <ArrowRight className="h-3.5 w-3.5" />
+                                        With SMOTE
+                                    </Badge>
+                                )}
+                                {win?.winner === 'without_smote' && (
+                                    <Badge variant="secondary" className="gap-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+                                        <ArrowRight className="h-3.5 w-3.5" />
+                                        Without SMOTE
+                                    </Badge>
+                                )}
+                            </td>
+                            </tr>
+                        );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
               <div className='overflow-x-auto'>
                 <h4 className='font-semibold mb-2'>Without SMOTE</h4>
                 <table className='w-full text-sm border-collapse'>
