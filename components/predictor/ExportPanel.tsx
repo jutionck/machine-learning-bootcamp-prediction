@@ -25,7 +25,7 @@ export default function ExportPanel({
         <Button
           onClick={onExportJSON}
           disabled={loading}
-          className='bg-gradient-to-r from-primary to-accent text-white'
+          className='bg-primary text-white hover:bg-primary/90'
         >
           {loading ? (
             <>
@@ -39,7 +39,7 @@ export default function ExportPanel({
         <Button
           onClick={onExportCSV}
           disabled={loading}
-          className='bg-gradient-to-r from-primary to-accent text-white'
+          className='bg-primary text-white hover:bg-primary/90'
         >
           {loading ? (
             <>
@@ -52,7 +52,7 @@ export default function ExportPanel({
         <Button
           onClick={onExportReport}
           disabled={loading}
-          className='bg-gradient-to-r from-primary to-accent text-white'
+          className='bg-primary text-white hover:bg-primary/90'
         >
           {loading ? (
             <>

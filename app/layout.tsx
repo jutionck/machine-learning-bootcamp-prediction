@@ -25,7 +25,9 @@ export default function RootLayout({
       lang='en'
       className={`${montserrat.variable} ${openSans.variable} antialiased`}
     >
-      <body className='font-sans'>{children}</body>
+      <body className='font-sans' suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

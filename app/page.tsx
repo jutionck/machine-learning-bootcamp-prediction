@@ -2,26 +2,7 @@
 
 import type React from 'react';
 import { useState } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Loader2,
-  Minus,
-  ArrowUp,
-  ArrowDown,
-  Target,
-  AlertTriangle,
-  Brain,
-} from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Brain } from 'lucide-react';
 import { algorithms, metricNames } from '@/lib/constants';
 import type {
   AdvancedMetadata,
@@ -33,6 +14,7 @@ import UploadPanel from '@/components/predictor/UploadPanel';
 import ExportPanel from '@/components/predictor/ExportPanel';
 import ResultsSummary from '@/components/predictor/ResultsSummary';
 import DatasetConfigCard from '@/components/predictor/DatasetConfigCard';
+import PredictionPanel from '@/components/predictor/PredictionPanel';
 import { getAlgorithmResults as extractAlgoResults } from '@/lib/results';
 
 type AdvancedTrainingResults = TrainingResultsMap;
@@ -529,16 +511,16 @@ export default function MLBootcampPredictor() {
   };
 
   return (
-    <div className='min-h-screen bg-gradient-to-br from-cyan-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900'>
+    <div className='min-h-screen bg-slate-50 dark:bg-slate-950'>
       <div className='container mx-auto px-4 py-8 space-y-8'>
         <div className='text-center space-y-6 animate-fade-in'>
-          <div className='inline-flex items-center gap-3 p-4 bg-gradient-to-r from-primary/10 to-accent/10 rounded-2xl backdrop-blur-sm border border-primary/20'>
-            <div className='p-3 bg-gradient-to-r from-primary to-accent rounded-xl animate-pulse-glow'>
+          <div className='inline-flex items-center gap-3 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-border shadow-sm'>
+            <div className='p-3 bg-primary rounded-xl'>
               <Brain className='h-8 w-8 text-white' />
             </div>
             <div className='text-left'>
-              <h1 className='text-4xl font-serif font-black bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent'>
-                Unlock Insights: Your ML Research Hub
+              <h1 className='text-4xl font-serif font-black text-slate-900 dark:text-slate-50'>
+                Bootcamp Prediction
               </h1>
               <p className='text-lg text-muted-foreground font-sans'>
                 Transforming Data into Knowledge
@@ -556,7 +538,7 @@ export default function MLBootcampPredictor() {
               }}
               className={`px-8 py-3 rounded-xl font-serif font-semibold transition-all duration-300 ${
                 !predictionMode
-                  ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg transform scale-105 animate-pulse-glow'
+                  ? 'bg-primary text-white shadow-lg transform scale-105'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700'
               }`}
             >
@@ -569,7 +551,7 @@ export default function MLBootcampPredictor() {
               }}
               className={`px-8 py-3 rounded-xl font-serif font-semibold transition-all duration-300 ${
                 predictionMode
-                  ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg transform scale-105 animate-pulse-glow'
+                  ? 'bg-primary text-white shadow-lg transform scale-105'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700'
               }`}
             >
@@ -579,225 +561,17 @@ export default function MLBootcampPredictor() {
         </div>
 
         {predictionMode ? (
-          <div className='space-y-8 animate-fade-in'>
-            <div className='w-full'>
-              <div className='w-full'>
-                {!results && !comparisonResults && (
-                  <div>
-                    <Alert className='border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20'>
-                      <AlertTriangle className='h-5 w-5 text-amber-600' />
-                      <AlertTitle className='text-amber-800 dark:text-amber-200'>
-                        No Trained Models
-                      </AlertTitle>
-                      <AlertDescription className='text-amber-700 dark:text-amber-300'>
-                        Please switch to Training Mode and train some models
-                        first before making predictions.
-                      </AlertDescription>
-                    </Alert>
-                    <div className='mt-4'>
-                      <Button
-                        onClick={goToTraining}
-                        className='bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-serif font-semibold px-6 py-3 rounded-xl shadow-lg'
-                      >
-                        Train New Data
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {(results || comparisonResults) && (
-                  <Card className='mb-8 shadow-xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm'>
-                    <CardHeader className='pb-6'>
-                      <CardTitle className='flex items-center gap-3 text-2xl font-serif'>
-                        <div className='p-2 bg-gradient-to-r from-primary to-accent rounded-lg'>
-                          <Target className='h-6 w-6 text-white' />
-                        </div>
-                        Individual Participant Prediction
-                      </CardTitle>
-                      <CardDescription className='text-lg text-slate-600 dark:text-slate-300'>
-                        Enter participant details to predict bootcamp success
-                        using your trained models
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className='space-y-8'>
-                      <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-                        <div className='space-y-2'>
-                          <Label htmlFor='age'>Age</Label>
-                          <Input
-                            id='age'
-                            type='number'
-                            placeholder='Enter age (16-60)'
-                            value={predictionData.age}
-                            onChange={(e) =>
-                              setPredictionData((prev) => ({
-                                ...prev,
-                                age: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className='space-y-2'>
-                          <Label htmlFor='gender'>Gender</Label>
-                          <select
-                            id='gender'
-                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
-                            value={predictionData.gender}
-                            onChange={(e) =>
-                              setPredictionData((prev) => ({
-                                ...prev,
-                                gender: e.target.value,
-                              }))
-                            }
-                          >
-                            <option value=''>Select gender</option>
-                            <option value='L'>L (Laki-laki)</option>
-                            <option value='P'>P (Perempuan)</option>
-                          </select>
-                        </div>
-
-                        <div className='space-y-2'>
-                          <Label htmlFor='grades'>Education Level</Label>
-                          <select
-                            id='grades'
-                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
-                            value={predictionData.grades}
-                            onChange={(e) =>
-                              setPredictionData((prev) => ({
-                                ...prev,
-                                grades: e.target.value,
-                              }))
-                            }
-                          >
-                            <option value=''>Select education level</option>
-                            <option value='SMA'>SMA</option>
-                            <option value='D3'>D3</option>
-                            <option value='S1'>S1</option>
-                            <option value='S2'>S2</option>
-                          </select>
-                        </div>
-
-                        <div className='space-y-2'>
-                          <Label htmlFor='majoring'>Major Background</Label>
-                          <select
-                            id='majoring'
-                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
-                            value={predictionData.majoring}
-                            onChange={(e) =>
-                              setPredictionData((prev) => ({
-                                ...prev,
-                                majoring: e.target.value,
-                              }))
-                            }
-                          >
-                            <option value=''>Select major background</option>
-                            <option value='IT'>IT</option>
-                            <option value='Non IT'>Non IT</option>
-                          </select>
-                        </div>
-
-                        <div className='space-y-2'>
-                          <Label htmlFor='experience'>
-                            Programming Experience
-                          </Label>
-                          <select
-                            id='experience'
-                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
-                            value={predictionData.experience}
-                            onChange={(e) =>
-                              setPredictionData((prev) => ({
-                                ...prev,
-                                experience: e.target.value,
-                              }))
-                            }
-                          >
-                            <option value=''>Select experience</option>
-                            <option value='yes'>Yes</option>
-                            <option value='no'>No</option>
-                          </select>
-                        </div>
-
-                        <div className='space-y-2'>
-                          <Label htmlFor='logical_test_score'>
-                            Logical Test Score (0-100)
-                          </Label>
-                          <Input
-                            id='logical_test_score'
-                            type='number'
-                            placeholder='Enter logical test score'
-                            value={predictionData.logical_test_score}
-                            onChange={(e) =>
-                              setPredictionData((prev) => ({
-                                ...prev,
-                                logical_test_score: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className='space-y-2'>
-                          <Label htmlFor='tech_interview_score'>
-                            Tech Interview Score (0-100)
-                          </Label>
-                          <Input
-                            id='tech_interview_score'
-                            type='number'
-                            placeholder='Enter tech interview score'
-                            value={predictionData.tech_interview_score}
-                            onChange={(e) =>
-                              setPredictionData((prev) => ({
-                                ...prev,
-                                tech_interview_score: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-
-                      <div className='flex gap-4 flex-wrap'>
-                        <Button
-                          onClick={handlePrediction}
-                          disabled={
-                            isPredicting || (!results && !comparisonResults)
-                          }
-                          className='flex-1 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-serif font-semibold py-3 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105'
-                          size='lg'
-                        >
-                          {isPredicting ? (
-                            <>
-                              <Loader2 className='mr-2 h-5 w-5 animate-spin' />
-                              Predicting...
-                            </>
-                          ) : (
-                            <>
-                              <Target className='mr-2 h-5 w-5' />
-                              Predict Success
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          onClick={resetPredictionForm}
-                          variant='outline'
-                          className='border-2 hover:bg-slate-50 dark:hover:bg-slate-700 font-serif font-semibold py-3 rounded-xl transition-all duration-300 bg-transparent'
-                          size='lg'
-                        >
-                          Reset Form
-                        </Button>
-                        <Button
-                          onClick={goToTraining}
-                          variant='outline'
-                          className='border-2 hover:bg-slate-50 dark:hover:bg-slate-700 font-serif font-semibold py-3 rounded-xl transition-all duration-300 bg-transparent'
-                          size='lg'
-                        >
-                          Train New Data
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-          </div>
+          <PredictionPanel
+            predictionData={predictionData}
+            setPredictionData={setPredictionData}
+            handlePrediction={handlePrediction}
+            isPredicting={isPredicting}
+            results={results}
+            comparisonResults={comparisonResults}
+            goToTraining={goToTraining}
+            resetPredictionForm={resetPredictionForm}
+            predictionResults={predictionResults}
+          />
         ) : (
           <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
             <div className='lg:col-span-1' id='upload-section'>

@@ -29,7 +29,7 @@ export default function AlgorithmSelector({
     <Card className='transition-all duration-300 hover:shadow-2xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm'>
       <CardHeader className='pb-6'>
         <CardTitle className='flex items-center gap-3 text-xl font-serif'>
-          <div className='p-2 bg-gradient-to-r from-primary to-accent rounded-lg'>
+          <div className='p-2 bg-primary rounded-lg'>
             <BarChart3 className='h-5 w-5 text-white' />
           </div>
           Algorithm Selection
@@ -129,7 +129,7 @@ export default function AlgorithmSelector({
             </div>
           </div>
 
-          <div className='flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-700 dark:to-slate-600 rounded-xl'>
+          <div className='flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-xl'>
             <div className='font-serif text-slate-700 dark:text-slate-300'>
               <span className='font-bold text-lg'>
                 {selectedAlgorithms.length}
@@ -137,7 +137,7 @@ export default function AlgorithmSelector({
               algorithm{selectedAlgorithms.length !== 1 ? 's' : ''} selected
             </div>
             {selectedAlgorithms.length > 0 && (
-              <Badge className='bg-gradient-to-r from-primary to-accent text-white animate-pulse font-serif'>
+              <Badge className='bg-primary text-white animate-pulse font-serif'>
                 Ready to train
               </Badge>
             )}

@@ -49,7 +49,7 @@ export default function DatasetConfigCard({
     <Card className='transition-all duration-300 hover:shadow-2xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm'>
       <CardHeader className='pb-4'>
         <CardTitle className='flex items-center gap-3 text-xl font-serif'>
-          <div className='p-2 bg-gradient-to-r from-primary to-accent rounded-lg'>
+          <div className='p-2 bg-primary rounded-lg'>
             <FileText className='h-5 w-5 text-white' />
           </div>
           Dataset Preview & Configuration
@@ -115,7 +115,7 @@ export default function DatasetConfigCard({
         {/* Algorithm Selection */}
         <div className='space-y-4'>
           <div className='flex items-center gap-3'>
-            <div className='p-2 bg-gradient-to-r from-primary to-accent rounded-lg'>
+            <div className='p-2 bg-primary rounded-lg'>
               <BarChart3 className='h-5 w-5 text-white' />
             </div>
             <h3 className='text-lg font-serif font-bold'>
@@ -211,13 +211,13 @@ export default function DatasetConfigCard({
             </div>
           </div>
 
-          <div className='flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-700 dark:to-slate-600 rounded-xl'>
+          <div className='flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-xl'>
             <div className='font-serif text-slate-700 dark:text-slate-300'>
               <span className='font-bold text-lg'>{selectedCount}</span>{' '}
               algorithm{selectedCount !== 1 ? 's' : ''} selected
             </div>
             {selectedCount > 0 && (
-              <Badge className='bg-gradient-to-r from-primary to-accent text-white animate-pulse font-serif'>
+              <Badge className='bg-primary text-white animate-pulse font-serif'>
                 Ready to train
               </Badge>
             )}
@@ -227,7 +227,7 @@ export default function DatasetConfigCard({
         {/* Training Config */}
         <div className='space-y-4'>
           <div className='flex items-center gap-3'>
-            <div className='p-2 bg-gradient-to-r from-primary to-accent rounded-lg'>
+            <div className='p-2 bg-primary rounded-lg'>
               <Settings className='h-5 w-5 text-white' />
             </div>
             <h3 className='text-lg font-serif font-bold'>
@@ -240,7 +240,7 @@ export default function DatasetConfigCard({
               id='smote'
               checked={useSmote}
               onCheckedChange={onUseSmoteChange}
-              className='data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-primary data-[state=checked]:to-accent'
+              className='data-[state=checked]:bg-primary'
             />
             <Label htmlFor='smote' className='font-serif font-medium'>
               Apply SMOTE (Synthetic Minority Oversampling Technique)
@@ -252,7 +252,7 @@ export default function DatasetConfigCard({
               id='comparison'
               checked={comparisonMode}
               onCheckedChange={onComparisonModeChange}
-              className='data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-primary data-[state=checked]:to-accent'
+              className='data-[state=checked]:bg-primary'
             />
             <Label htmlFor='comparison' className='font-serif font-medium'>
               Comparison Mode (Train with and without SMOTE)
@@ -263,13 +263,13 @@ export default function DatasetConfigCard({
             <Button
               onClick={onStart}
               disabled={isTraining || selectedCount === 0 || !datasetValid}
-              className='w-full bg-gradient-to-r from-primary via-accent to-primary hover:from-primary/90 hover:via-accent/90 hover:to-primary/90 text-white font-serif font-bold text-lg py-4 rounded-2xl shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-3xl'
+              className='w-full bg-primary hover:bg-primary/90 text-white font-serif font-bold text-lg py-4 rounded-2xl shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-3xl'
               size='lg'
             >
               {isTraining ? (
                 <>
                   <Loader2 className='mr-3 h-6 w-6 animate-spin' />
-                  Training Models... ({trainingProgress}%)
+                  Training Models... ({trainingProgress.toFixed(0)}%)
                 </>
               ) : (
                 <>

@@ -45,7 +45,7 @@ export default function UploadPanel(props: Props) {
       <Card className='transition-all duration-300 hover:shadow-2xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm'>
         <CardHeader className='pb-6'>
           <CardTitle className='flex items-center gap-3 text-xl font-serif'>
-            <div className='p-2 bg-gradient-to-r from-primary to-accent rounded-lg'>
+            <div className='p-2 bg-primary rounded-lg'>
               <Upload className='h-5 w-5 text-white' />
             </div>
             Upload Data
@@ -139,7 +139,7 @@ export default function UploadPanel(props: Props) {
               id='comparison-toggle'
               checked={comparisonMode}
               onCheckedChange={onComparisonModeChange}
-              className='data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-primary data-[state=checked]:to-accent'
+              className='data-[state=checked]:bg-primary'
             />
             <Label
               htmlFor='comparison-toggle'
@@ -155,7 +155,7 @@ export default function UploadPanel(props: Props) {
                 id='smote-toggle'
                 checked={useSmote}
                 onCheckedChange={onUseSmoteChange}
-                className='data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-primary data-[state=checked]:to-accent'
+                className='data-[state=checked]:bg-primary'
               />
               <Label htmlFor='smote-toggle' className='font-serif font-medium'>
                 Apply SMOTE (Synthetic Minority Oversampling)

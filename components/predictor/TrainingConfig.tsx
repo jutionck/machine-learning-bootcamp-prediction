@@ -34,10 +34,10 @@ export default function TrainingConfig({
   onStart,
 }: Props) {
   return (
-    <Card className='transition-all duration-300 hover:shadow-2xl border-0 bg-gradient-to-br from-white to-blue-50 dark:from-slate-800 dark:to-slate-700 backdrop-blur-sm'>
+    <Card className='transition-all duration-300 hover:shadow-2xl border-0 bg-white dark:bg-slate-800 backdrop-blur-sm'>
       <CardHeader className='pb-6'>
         <CardTitle className='flex items-center gap-3 text-xl font-serif'>
-          <div className='p-2 bg-gradient-to-r from-primary to-accent rounded-lg'>
+          <div className='p-2 bg-primary rounded-lg'>
             <Settings className='h-5 w-5 text-white' />
           </div>
           Training Configuration
@@ -52,7 +52,7 @@ export default function TrainingConfig({
             id='smote'
             checked={useSmote}
             onCheckedChange={onUseSmoteChange}
-            className='data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-primary data-[state=checked]:to-accent'
+            className='data-[state=checked]:bg-primary'
           />
           <Label htmlFor='smote' className='font-serif font-medium'>
             Apply SMOTE (Synthetic Minority Oversampling Technique)
@@ -64,7 +64,7 @@ export default function TrainingConfig({
             id='comparison'
             checked={comparisonMode}
             onCheckedChange={onComparisonModeChange}
-            className='data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-primary data-[state=checked]:to-accent'
+            className='data-[state=checked]:bg-primary'
           />
           <Label htmlFor='comparison' className='font-serif font-medium'>
             Comparison Mode (Train with and without SMOTE)
@@ -75,7 +75,7 @@ export default function TrainingConfig({
           <Button
             onClick={onStart}
             disabled={isTraining || selectedCount === 0}
-            className='w-full bg-gradient-to-r from-primary via-accent to-primary hover:from-primary/90 hover:via-accent/90 hover:to-primary/90 text-white font-serif font-bold text-lg py-4 rounded-2xl shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-3xl animate-pulse-glow'
+            className='w-full bg-primary hover:bg-primary/90 text-white font-serif font-bold text-lg py-4 rounded-2xl shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-3xl animate-pulse-glow'
             size='lg'
           >
             {isTraining ? (
