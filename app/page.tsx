@@ -41,6 +41,7 @@ export default function MLBootcampPredictor() {
 
   const [datasetPreview, setDatasetPreview] = useState<any[]>([]);
   const [datasetValid, setDatasetValid] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const [predictionMode, setPredictionMode] = useState(false);
   const [predictionData, setPredictionData] = useState({
@@ -192,8 +193,10 @@ export default function MLBootcampPredictor() {
       });
 
       setDatasetValid(newValidationErrors.length === 0);
+      setValidationErrors(newValidationErrors);
     } catch (error) {
       setDatasetValid(false);
+      setValidationErrors(['Error parsing CSV file']);
     }
   };
 
@@ -589,6 +592,7 @@ export default function MLBootcampPredictor() {
                 onComparisonModeChange={setComparisonMode}
                 onUseSmoteChange={setUseSmote}
                 showInlinePreview={false}
+                validationErrors={validationErrors}
               />
             </div>
 

@@ -25,6 +25,7 @@ type Props = {
   onComparisonModeChange: (value: boolean) => void;
   onUseSmoteChange: (value: boolean) => void;
   showInlinePreview?: boolean;
+  validationErrors?: string[];
 };
 
 export default function UploadPanel(props: Props) {
@@ -38,6 +39,7 @@ export default function UploadPanel(props: Props) {
     onComparisonModeChange,
     onUseSmoteChange,
     showInlinePreview = true,
+    validationErrors = [],
   } = props;
 
   return (
@@ -87,6 +89,24 @@ export default function UploadPanel(props: Props) {
                     </div>
                   </div>
                 </div>
+
+                {!datasetValid && validationErrors && validationErrors.length > 0 && (
+                  <Alert variant="destructive" className="bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs ml-2">
+                      <div className="font-semibold mb-1">Validation Errors:</div>
+                      <ul className="list-disc pl-4 space-y-1">
+                        {validationErrors.slice(0, 5).map((err, idx) => (
+                          <li key={idx}>{err}</li>
+                        ))}
+                        {validationErrors.length > 5 && (
+                          <li>...and {validationErrors.length - 5} more errors</li>
+                        )}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {datasetValid && (
                   <Badge
                     variant='secondary'
