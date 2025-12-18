@@ -16,6 +16,10 @@ export interface AlgorithmResult {
   validation_score?: number
   feature_importance?: { [key: string]: number }
   shap_importance?: { [key: string]: number }
+  cv_stats?: {
+    mean_f1: number
+    std_f1: number
+  }
 }
 
 export interface TrainingResultsMap {

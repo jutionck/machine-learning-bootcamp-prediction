@@ -34,10 +34,32 @@ export default function PredictionPage() {
   const [predictionResults, setPredictionResults] = useState<any>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [serverModels, setServerModels] = useState<string[]>([]);
+  const [checkingModels, setCheckingModels] = useState(true);
 
+  // Check for server-side models on mount
+  React.useEffect(() => {
+    const checkModels = async () => {
+      try {
+        const res = await fetch('/api/check-models');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.available && Array.isArray(data.models)) {
+            setServerModels(data.models);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check models:", err);
+      } finally {
+        setCheckingModels(false);
+      }
+    };
+    checkModels();
+  }, []);
   const handlePrediction = async () => {
-    const hasTrainedModels = results || comparisonResults;
-    if (!hasTrainedModels) {
+    const availableModels = selectedAlgorithms.length > 0 ? selectedAlgorithms : serverModels;
+    
+    if (availableModels.length === 0) {
       setErrors(['Please train models first before making predictions']);
       return;
     }
@@ -70,7 +92,7 @@ export default function PredictionPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           participant_data: predictionData,
-          trained_models: selectedAlgorithms,
+          trained_models: availableModels,
         }),
       });
 
@@ -79,11 +101,81 @@ export default function PredictionPage() {
       }
 
       const data = await response.json();
-      setPredictionResults(data);
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      if (!data.predictions) {
+          throw new Error("Invalid response from predictor: missing predictions");
+      }
+      
+      // Transform predictions object to array for UI
+      const predictionsArray = Object.entries(data.predictions).map(([algo, res]: [string, any]) => ({
+        algorithm: algo,
+        prediction: res.prediction,
+        probability: res.confidence
+      }));
+      
+      setPredictionResults({ ...data, predictions: predictionsArray });
     } catch (error) {
       console.error('Prediction error:', error);
       setErrors([error instanceof Error ? error.message : 'Prediction failed']);
     } finally {
+      setIsPredicting(false);
+    }
+  };
+
+  const handleBatchPrediction = async (file: File) => {
+    const availableModels = selectedAlgorithms.length > 0 ? selectedAlgorithms : serverModels;
+    
+    if (availableModels.length === 0) {
+      setErrors(['Please train models first before making predictions']);
+      return;
+    }
+
+    setIsPredicting(true);
+    setErrors([]);
+
+    try {
+      // Read file content
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const text = e.target?.result as string;
+        
+        try {
+            const response = await fetch('/api/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                csv_data: text,
+                trained_models: availableModels,
+            }),
+            });
+
+            if (!response.ok) {
+            throw new Error(`Prediction failed: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            setPredictionResults(data);
+        } catch (error) {
+            console.error('Batch Prediction error:', error);
+            setErrors([error instanceof Error ? error.message : 'Prediction failed']);
+        } finally {
+            setIsPredicting(false);
+        }
+      };
+      
+      reader.onerror = () => {
+         setErrors(['Failed to read file']);
+         setIsPredicting(false);
+      }
+      
+      reader.readAsText(file);
+      
+    } catch (error) {
+      setErrors([error instanceof Error ? error.message : 'Prediction failed']);
       setIsPredicting(false);
     }
   };
@@ -102,7 +194,10 @@ export default function PredictionPage() {
     setErrors([]);
   };
 
-  const hasTrainedModels = !!(results || comparisonResults);
+  const hasTrainedModels = !!(results || comparisonResults || serverModels.length > 0);
+  
+  // Show loading state while checking
+  if (checkingModels) return null;
 
   return (
     <SidebarProvider>
@@ -180,6 +275,8 @@ export default function PredictionPage() {
                     goToTraining={() => window.location.href = '/'} 
                     resetPredictionForm={resetPredictionForm}
                     predictionResults={predictionResults}
+                    hasModels={hasTrainedModels}
+                    handleBatchPrediction={handleBatchPrediction}
                 />
             )}
           </div>

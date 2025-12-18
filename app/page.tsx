@@ -264,27 +264,34 @@ export default function MLBootcampPredictor() {
         throw new Error(data.error);
       }
 
-      if (data.comparison_mode) {
-        setComparisonResults({
+      // Handle automatic SMOTE analysis comparison
+      if (data.smote_analysis) {
+        setComparisonResults(data.smote_analysis);
+      } else if (data.comparison_mode) {
+         // Fallback for legacy if needed
+         setComparisonResults({
           without_smote: data.without_smote,
           with_smote: data.with_smote,
           comparison: data.comparison,
         });
-        setStatisticalAnalysis(data.statistical_analysis);
-        setMetadata(data.with_smote.metadata);
-        setTrainingComplete(true);
-      } else {
-        const {
-          metadata: resultMetadata,
-          statistical_analysis,
-          ...algorithmResults
-        } = data;
-
-        setResults(algorithmResults);
-        setMetadata(resultMetadata);
-        setStatisticalAnalysis(statistical_analysis);
-        setTrainingComplete(true);
       }
+
+      // Main results (Best/SMOTE version is usually returned as root keys)
+      const {
+        metadata: resultMetadata,
+        statistical_analysis,
+        smote_analysis, // Exclude from algResults
+        comparison_mode, // Exclude
+        without_smote, // Exclude
+        with_smote, // Exclude
+        comparison, // Exclude
+        ...algorithmResults
+      } = data;
+
+      setResults(algorithmResults);
+      setMetadata(resultMetadata);
+      setStatisticalAnalysis(statistical_analysis);
+      setTrainingComplete(true);
       // Save selected algorithms to global context for prediction
       setGlobalSelectedAlgorithms(selectedAlgorithms);
       // Manual navigation: setTrainingStep(3) removed

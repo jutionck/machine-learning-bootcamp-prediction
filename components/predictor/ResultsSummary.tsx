@@ -79,7 +79,7 @@ export default function ResultsSummary({
 
   return (
     <div className='space-y-6'>
-      {!isComparison && bestByAccuracy && (
+      {bestByAccuracy && (
         <Card className='border-0 shadow-none overflow-hidden bg-emerald-500 text-white'>
           <div className='p-5'>
             <div className='flex items-center justify-between'>
@@ -107,10 +107,10 @@ export default function ResultsSummary({
         </Card>
       )}
 
-      {!isComparison && algArray.length > 0 && (
+      {algArray.length > 0 && (
         <Card className='shadow-lg'>
           <CardHeader>
-            <CardTitle>Performance Comparison</CardTitle>
+            <CardTitle>Performance Comparison {isComparison && '(With SMOTE)'}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
@@ -192,6 +192,7 @@ export default function ResultsSummary({
                         {metricNames[k as keyof typeof metricNames]}
                       </th>
                     ))}
+                    <th className='text-left p-2'>Stability (CV F1)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -206,6 +207,11 @@ export default function ResultsSummary({
                       <td className='p-2'>{format(r.metrics.recall)}</td>
                       <td className='p-2'>{format(r.metrics.f1_score)}</td>
                       <td className='p-2'>{format(r.metrics.roc_auc)}</td>
+                      <td className='p-2 font-mono text-xs'>
+                        {r.cv_stats 
+                          ? `${(r.cv_stats.mean_f1 * 100).toFixed(1)}% (±${(r.cv_stats.std_f1 * 100).toFixed(1)}%)`
+                          : '-'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -286,6 +292,7 @@ export default function ResultsSummary({
                           {metricNames[k as keyof typeof metricNames]}
                         </th>
                       ))}
+                      <th className='text-left p-2'>Stability (CV F1)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -308,6 +315,11 @@ export default function ResultsSummary({
                               {format(r.metrics.f1_score)}
                             </td>
                             <td className='p-2'>{format(r.metrics.roc_auc)}</td>
+                            <td className='p-2 font-mono text-xs'>
+                                {r.cv_stats 
+                                ? `${(r.cv_stats.mean_f1 * 100).toFixed(1)}% (±${(r.cv_stats.std_f1 * 100).toFixed(1)}%)`
+                                : '-'}
+                            </td>
                           </tr>
                         ) : null
                     )}
@@ -327,6 +339,7 @@ export default function ResultsSummary({
                           {metricNames[k as keyof typeof metricNames]}
                         </th>
                       ))}
+                      <th className='text-left p-2'>Stability (CV F1)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -349,6 +362,11 @@ export default function ResultsSummary({
                               {format(r.metrics.f1_score)}
                             </td>
                             <td className='p-2'>{format(r.metrics.roc_auc)}</td>
+                            <td className='p-2 font-mono text-xs'>
+                                {r.cv_stats 
+                                ? `${(r.cv_stats.mean_f1 * 100).toFixed(1)}% (±${(r.cv_stats.std_f1 * 100).toFixed(1)}%)`
+                                : '-'}
+                            </td>
                           </tr>
                         ) : null
                     )}

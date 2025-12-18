@@ -28,3 +28,5 @@ next-env.d.ts
 
 .venv/
 scripts/__pycache__
+
+saved_models/

@@ -182,9 +182,13 @@ class AdvancedMLBootcampPredictor:
         grid_search.fit(X_train, y_train)
         
         # Validate on validation set
-        val_score = grid_search.score(X_val, y_val)
         
-        return grid_search.best_estimator_, grid_search.best_params_, val_score
+        # Get CV results for the best estimator
+        best_index = grid_search.best_index_
+        std_val_score = grid_search.cv_results_['std_test_score'][best_index]
+        mean_val_score = grid_search.cv_results_['mean_test_score'][best_index]
+        
+        return grid_search.best_estimator_, grid_search.best_params_, mean_val_score, std_val_score
     
     def calculate_feature_importance(self, model, algorithm_id):
         """Calculate feature importance based on algorithm type"""
@@ -320,7 +324,7 @@ class AdvancedMLBootcampPredictor:
                 print(f"\nTraining {self.algorithm_names[alg_id]} with hyperparameter tuning...")
                 
                 # Hyperparameter tuning
-                best_model, best_params, val_score = self.hyperparameter_tuning(
+                best_model, best_params, val_score, val_std = self.hyperparameter_tuning(
                     alg_id, X_train, y_train, X_val, y_val
                 )
                 
@@ -344,6 +348,10 @@ class AdvancedMLBootcampPredictor:
                 results[alg_id] = {
                     'name': self.algorithm_names[alg_id],
                     'metrics': metrics,
+                    'cv_stats': {
+                        'mean_f1': float(val_score),
+                        'std_f1': float(val_std)
+                    },
                     'best_params': best_params,
                     'validation_score': val_score,
                     'feature_importance': feature_importance,
@@ -428,54 +436,7 @@ class AdvancedMLBootcampPredictor:
         
         # Convert single dict to DataFrame
         df = pd.DataFrame([data_dict])
-        
-        # 1. Preprocess
-        # Manual mapping for ordered/specific columns
-        if 'gender' in df.columns:
-             df['gender'] = df['gender'].map({'L': 0, 'P': 1})
-        
-        if 'grades' in df.columns:
-            education_order = {'SMA': 1, 'D3': 2, 'S1': 3, 'S2': 4, 'S3': 5}
-            # Fill unknown with default (SMA=1) or handle error
-            df['grades'] = df['grades'].map(education_order).fillna(1)
-            
-        # Apply strict column encoding
-        for col, le in self.column_encoders.items():
-            if col in df.columns:
-                # Handle unseen labels carefully? For now assume valid input or try/except
-                try:
-                    df[col] = le.transform(df[col].astype(str))
-                except ValueError:
-                    # Fallback for unseen labels: assign to most frequent (0 usually) or error
-                    df[col] = 0 
-        
-        # Scale
-        # Ensure we have the same columns as training (self.feature_names)
-        # We need to reorder/select columns to match scaler input
-        # Note: self.feature_names was saved during training
-        
-        # If feature_names is empty (new instance), we rely on scaler.feature_names_in_ if available
-        # But we didn't save feature_names explicitly in load_artifacts (only inferred). 
-        # Safer to rely on dataframe columns matching if possible, but alignment is critical.
-        
-        # Let's align columns
-        X_aligned = pd.DataFrame(index=df.index)
-        
-        # We assume scaler was fitted on specific columns. 
-        # In sklearn > 1.0, scaler has feature_names_in_.
-        if hasattr(self.scaler, 'feature_names_in_'):
-            dataset_features = self.scaler.feature_names_in_
-        else:
-            # Fallback (risky if usage changes)
-            dataset_features = df.columns
-            
-        for feature in dataset_features:
-            if feature in df.columns:
-                X_aligned[feature] = df[feature]
-            else:
-                X_aligned[feature] = 0 # Missing feature
-                
-        X_scaled = self.scaler.transform(X_aligned)
+        X_scaled = self._preprocess_inference(df)
         
         predictions = {}
         for alg_id in model_ids:
@@ -497,10 +458,6 @@ class AdvancedMLBootcampPredictor:
                     pred = model.predict(X_scaled)[0]
                     prob = 1.0 if pred == 1 else 0.0
                 
-                # We used label encoder for target (Fail=0, Pass=1 usually, but check class order)
-                # target encoder classes are sorted. 0=failed (f comes before p?), 1=pass
-                # Let's verify class order: 'failed', 'pass'. 'failed' < 'pass'. So 0=failed, 1=pass.
-                
                 # Return standardized format
                 pred_label = 'pass' if prob > 0.5 else 'fail'
                 confidence = prob if prob > 0.5 else 1 - prob
@@ -513,6 +470,100 @@ class AdvancedMLBootcampPredictor:
                 predictions[alg_id] = {'error': str(e)}
                 
         return predictions
+        
+    def _preprocess_inference(self, df):
+        """Preprocess inference data (shared between single and batch)"""
+        import pandas as pd
+        import numpy as np
+
+        # 1. Preprocess
+        # Manual mapping for ordered/specific columns
+        if 'gender' in df.columns:
+             df['gender'] = df['gender'].map({'L': 0, 'P': 1})
+        
+        if 'grades' in df.columns:
+            education_order = {'SMA': 1, 'D3': 2, 'S1': 3, 'S2': 4, 'S3': 5}
+            # Fill unknown with default (SMA=1) or handle error
+            df['grades'] = df['grades'].map(education_order).fillna(1)
+            
+        # Apply strict column encoding
+        for col, le in self.column_encoders.items():
+            if col in df.columns:
+                # Handle unseen labels carefully
+                # Vectorized map with fallback
+                def safe_transform(x):
+                    try:
+                        return le.transform([str(x)])[0]
+                    except:
+                        return 0
+                
+                # Apply safe transform
+                # Optimized: identify unique values, transform valid ones, map back
+                # For safety/simplicity in this context, valid classes check is good
+                valid_classes = set(le.classes_)
+                df[col] = df[col].astype(str).map(lambda x: le.transform([x])[0] if x in valid_classes else 0)
+
+        # Scale
+        X_aligned = pd.DataFrame(index=df.index)
+        
+        if hasattr(self.scaler, 'feature_names_in_'):
+            dataset_features = self.scaler.feature_names_in_
+        else:
+            dataset_features = df.columns
+            
+        for feature in dataset_features:
+            if feature in df.columns:
+                X_aligned[feature] = df[feature]
+            else:
+                X_aligned[feature] = 0 # Missing feature
+                
+        # Fill any remaining NaNs (e.g. from missing columns)
+        X_aligned = X_aligned.fillna(0)
+                
+        return self.scaler.transform(X_aligned)
+
+    def predict_batch(self, df, model_ids, models_dir='saved_models'):
+        """Batch prediction for DataFrame"""
+        import numpy as np
+        
+        X_scaled = self._preprocess_inference(df)
+        
+        # Initialize results structure: list of dicts (one per row)
+        # Each dict contains predictions for all models
+        batch_results = [{} for _ in range(len(df))]
+        
+        for alg_id in model_ids:
+            model_path = os.path.join(models_dir, f'{alg_id}.joblib')
+            if not os.path.exists(model_path):
+                for i in range(len(df)):
+                    batch_results[i][alg_id] = {'error': 'Model not found'}
+                continue
+                
+            model = joblib.load(model_path)
+            
+            try:
+                # Batch predict
+                if hasattr(model, 'predict_proba'):
+                    probs = model.predict_proba(X_scaled)[:, 1] # Class 1 (Pass)
+                else:
+                    preds = model.predict(X_scaled)
+                    probs = (preds == 1).astype(float)
+                
+                # Assign to results
+                for i, prob in enumerate(probs):
+                    pred_label = 'pass' if prob > 0.5 else 'fail'
+                    confidence = prob if prob > 0.5 else 1 - prob
+                    batch_results[i][alg_id] = {
+                        'prediction': pred_label,
+                        'confidence': float(confidence)
+                    }
+                    
+            except Exception as e:
+                for i in range(len(df)):
+                    batch_results[i][alg_id] = {'error': str(e)}
+                    
+        return batch_results
+
 
 def main():
     """Main function for advanced ML training"""
