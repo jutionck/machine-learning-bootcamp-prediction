@@ -2,8 +2,9 @@
 
 import type React from 'react';
 import { useState } from 'react';
-import { Brain } from 'lucide-react';
+import { GraduationCap } from 'lucide-react';
 import { algorithms, metricNames } from '@/lib/constants';
+import { useModel } from '@/lib/context/ModelContext';
 import type {
   AdvancedMetadata,
   ComparisonResults,
@@ -14,27 +15,41 @@ import UploadPanel from '@/components/predictor/UploadPanel';
 import ExportPanel from '@/components/predictor/ExportPanel';
 import ResultsSummary from '@/components/predictor/ResultsSummary';
 import DatasetConfigCard from '@/components/predictor/DatasetConfigCard';
-import PredictionPanel from '@/components/predictor/PredictionPanel';
-import UsageGuide from '@/components/predictor/UsageGuide';
 import { getAlgorithmResults as extractAlgoResults } from '@/lib/results';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/predictor/AppSidebar';
+import { Separator } from '@/components/ui/separator';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { Stepper } from '@/components/ui/stepper';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 type AdvancedTrainingResults = TrainingResultsMap;
 type StatisticalAnalysis = StatisticalAnalysisMap;
 
 export default function MLBootcampPredictor() {
+  const { 
+    results, setResults, 
+    comparisonResults, setComparisonResults, 
+    metadata, setMetadata, 
+    statisticalAnalysis, setStatisticalAnalysis,
+    selectedAlgorithms: globalSelectedAlgorithms, setSelectedAlgorithms: setGlobalSelectedAlgorithms
+  } = useModel();
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedAlgorithms, setSelectedAlgorithms] = useState<string[]>([]);
   const [useSmote, setUseSmote] = useState(false);
   const [isTraining, setIsTraining] = useState(false);
   const [trainingComplete, setTrainingComplete] = useState(false);
-  const [results, setResults] = useState<AdvancedTrainingResults | null>(null);
-  const [metadata, setMetadata] = useState<AdvancedMetadata | null>(null);
-  const [statisticalAnalysis, setStatisticalAnalysis] =
-    useState<StatisticalAnalysis | null>(null);
 
   const [comparisonMode, setComparisonMode] = useState(false);
-  const [comparisonResults, setComparisonResults] =
-    useState<ComparisonResults | null>(null);
   const [trainingProgress, setTrainingProgress] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
   const [exportLoading, setExportLoading] = useState(false);
@@ -43,33 +58,8 @@ export default function MLBootcampPredictor() {
   const [datasetValid, setDatasetValid] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  const [predictionMode, setPredictionMode] = useState(false);
-  const [predictionData, setPredictionData] = useState({
-    age: '',
-    gender: '',
-    grades: '',
-    majoring: '',
-    experience: '',
-    logical_test_score: '',
-    tech_interview_score: '',
-  });
-  const [predictionResults, setPredictionResults] = useState<any>(null);
-  const [isPredicting, setIsPredicting] = useState(false);
+  const [trainingStep, setTrainingStep] = useState(1);
 
-  // Quick switch to Training Mode and focus the upload section
-  const goToTraining = () => {
-    setPredictionMode(false);
-    setErrors([]);
-    // Smooth scroll to upload section if present
-    setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        document.getElementById('upload-section')?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        });
-      }
-    }, 0);
-  };
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -192,8 +182,10 @@ export default function MLBootcampPredictor() {
         }
       });
 
+
       setDatasetValid(newValidationErrors.length === 0);
       setValidationErrors(newValidationErrors);
+      // Manual navigation: setTrainingStep(2) removed
     } catch (error) {
       setDatasetValid(false);
       setValidationErrors(['Error parsing CSV file']);
@@ -221,58 +213,7 @@ export default function MLBootcampPredictor() {
     }
   };
 
-  const handlePrediction = async () => {
-    const hasTrainedModels = results || comparisonResults;
-    if (!hasTrainedModels) {
-      setErrors(['Please train models first before making predictions']);
-      return;
-    }
 
-    const requiredFields = [
-      'age',
-      'gender',
-      'grades',
-      'majoring',
-      'experience',
-      'logical_test_score',
-      'tech_interview_score',
-    ];
-    const missingFields = requiredFields.filter(
-      (field) => !predictionData[field as keyof typeof predictionData]
-    );
-    if (missingFields.length > 0) {
-      setErrors([
-        `Please fill in all required fields: ${missingFields.join(', ')}`,
-      ]);
-      return;
-    }
-
-    setIsPredicting(true);
-    setErrors([]);
-
-    try {
-      const response = await fetch('/api/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          participant_data: predictionData,
-          trained_models: selectedAlgorithms,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Prediction failed: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setPredictionResults(data);
-    } catch (error) {
-      console.error('Prediction error:', error);
-      setErrors([error instanceof Error ? error.message : 'Prediction failed']);
-    } finally {
-      setIsPredicting(false);
-    }
-  };
   const handleTraining = async () => {
     if (!selectedFile || selectedAlgorithms.length === 0) {
       setErrors(['Please upload a dataset and select at least one algorithm']);
@@ -344,6 +285,9 @@ export default function MLBootcampPredictor() {
         setStatisticalAnalysis(statistical_analysis);
         setTrainingComplete(true);
       }
+      // Save selected algorithms to global context for prediction
+      setGlobalSelectedAlgorithms(selectedAlgorithms);
+      // Manual navigation: setTrainingStep(3) removed
     } catch (error) {
       console.error('Training error:', error);
       setErrors([error instanceof Error ? error.message : 'Training failed']);
@@ -500,163 +444,206 @@ export default function MLBootcampPredictor() {
 
   // Removed unused getTopFeatures helper
 
-  const resetPredictionForm = () => {
-    setPredictionData({
-      age: '',
-      gender: '',
-      grades: '',
-      majoring: '',
-      experience: '',
-      logical_test_score: '',
-      tech_interview_score: '',
-    });
-    setPredictionResults(null);
-    setErrors([]);
-  };
+
 
   return (
-    <div className='min-h-screen bg-slate-50 dark:bg-slate-950'>
-      <div className='container mx-auto px-4 py-8 space-y-8'>
-        <div className='text-center space-y-6 animate-fade-in'>
-          <div className='inline-flex items-center gap-3 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-border shadow-sm'>
-            <div className='p-3 bg-primary rounded-xl'>
-              <Brain className='h-8 w-8 text-white' />
-            </div>
-            <div className='text-left'>
-              <h1 className='text-4xl font-serif font-black text-slate-900 dark:text-slate-50'>
-                Bootcamp Prediction
-              </h1>
-              <p className='text-lg text-muted-foreground font-sans'>
-                Transforming Data into Knowledge
-              </p>
-            </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <div className="flex items-center gap-2">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/">ML Predictor</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Training Mode</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
           </div>
-          <div className="mt-4">
-             <UsageGuide />
-          </div>
-        </div>
+        </header>
 
-        <div className='flex justify-center mb-12'>
-          <div className='bg-white dark:bg-slate-800 rounded-2xl p-2 shadow-lg border border-slate-200 dark:border-slate-700'>
-            <button
-              onClick={() => {
-                setPredictionMode(false);
-                setErrors([]);
-              }}
-              className={`px-8 py-3 rounded-xl font-serif font-semibold transition-all duration-300 ${
-                !predictionMode
-                  ? 'bg-primary text-white shadow-lg transform scale-105'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700'
-              }`}
-            >
-              Training Mode
-            </button>
-            <button
-              onClick={() => {
-                setPredictionMode(true);
-                setErrors([]);
-              }}
-              className={`px-8 py-3 rounded-xl font-serif font-semibold transition-all duration-300 ${
-                predictionMode
-                  ? 'bg-primary text-white shadow-lg transform scale-105'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700'
-              }`}
-            >
-              Prediction Mode
-            </button>
-          </div>
-        </div>
+        <div className='bg-slate-50 dark:bg-slate-950 flex-1 p-4 md:p-8 space-y-8'>
+          <div className="max-w-7xl mx-auto space-y-8">
+            <div className='animate-fade-in'>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-primary/10 rounded-xl">
+                  <GraduationCap className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Training Mode</h1>
+                  <p className="text-muted-foreground mt-1 text-sm md:text-base">
+                     Train machine learning models on your bootcamp dataset.
+                  </p>
+                </div>
+              </div>
+             </div>
 
-        {predictionMode ? (
-          <PredictionPanel
-            predictionData={predictionData}
-            setPredictionData={setPredictionData}
-            handlePrediction={handlePrediction}
-            isPredicting={isPredicting}
-            results={results}
-            comparisonResults={comparisonResults}
-            goToTraining={goToTraining}
-            resetPredictionForm={resetPredictionForm}
-            predictionResults={predictionResults}
-          />
-        ) : (
-          <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
-            <div className='lg:col-span-1' id='upload-section'>
-              <UploadPanel
-                selectedFile={selectedFile}
-                datasetValid={datasetValid}
-                datasetPreview={datasetPreview}
-                comparisonMode={comparisonMode}
-                useSmote={useSmote}
-                onFileChange={handleFileUpload}
-                onComparisonModeChange={setComparisonMode}
-                onUseSmoteChange={setUseSmote}
-                showInlinePreview={false}
-                validationErrors={validationErrors}
-              />
-            </div>
+             <div className="max-w-4xl mx-auto mb-12">
+                  <Stepper 
+                    steps={[
+                      { title: "Upload" },
+                      { title: "Config" },
+                      { title: "Results" },
+                      { title: "Export" }
+                    ]} 
+                    currentStep={trainingStep} 
+                  />
+              </div>
+  
+          <div className="space-y-8">
 
-            {datasetValid && (
-              <div className='lg:col-span-2'>
-                <DatasetConfigCard
-                  datasetPreview={datasetPreview}
-                  datasetValid={datasetValid}
-                  selectedAlgorithms={selectedAlgorithms}
-                  onToggleAlgorithm={handleAlgorithmToggle}
-                  onSelectAll={(type) => {
-                    if (type === 'all')
-                      setSelectedAlgorithms(algorithms.map((a) => a.id));
-                    else if (type === 'conventional')
-                      setSelectedAlgorithms((prev) => [
-                        ...new Set([
-                          ...prev,
-                          ...algorithms
-                            .filter((a) => a.type === 'conventional')
-                            .map((a) => a.id),
-                        ]),
-                      ]);
-                    else
-                      setSelectedAlgorithms((prev) => [
-                        ...new Set([
-                          ...prev,
-                          ...algorithms
-                            .filter((a) => a.type === 'boosting')
-                            .map((a) => a.id),
-                        ]),
-                      ]);
-                  }}
-                  useSmote={useSmote}
-                  comparisonMode={comparisonMode}
-                  isTraining={isTraining}
-                  trainingProgress={trainingProgress}
-                  onUseSmoteChange={setUseSmote}
-                  onComparisonModeChange={setComparisonMode}
-                  onStart={handleTraining}
-                />
+            {trainingStep === 1 && (
+              <div className="max-w-7xl mx-auto animate-fade-in flex flex-col gap-6">
+                  <UploadPanel
+                    selectedFile={selectedFile}
+                    datasetValid={datasetValid}
+                    datasetPreview={datasetPreview}
+                    onFileChange={handleFileUpload}
+                    showInlinePreview={true}
+                    validationErrors={validationErrors}
+                  />
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={() => setTrainingStep(2)} 
+                      disabled={!datasetValid}
+                      className="gap-2"
+                    >
+                      Next Step
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+              </div>
+            )}
+
+            {trainingStep === 2 && (
+              <div className='max-w-7xl mx-auto animate-fade-in flex flex-col gap-6'>
+                <div className="grid grid-cols-1 gap-8">
+                    <DatasetConfigCard
+                        datasetPreview={datasetPreview}
+                        datasetValid={datasetValid}
+                        selectedAlgorithms={selectedAlgorithms}
+                        onToggleAlgorithm={handleAlgorithmToggle}
+                        onSelectAll={(type) => {
+                        if (type === 'all')
+                            setSelectedAlgorithms(algorithms.map((a) => a.id));
+                        else if (type === 'conventional')
+                            setSelectedAlgorithms((prev) => [
+                            ...new Set([
+                                ...prev,
+                                ...algorithms
+                                .filter((a) => a.type === 'conventional')
+                                .map((a) => a.id),
+                            ]),
+                            ]);
+                        else
+                            setSelectedAlgorithms((prev) => [
+                            ...new Set([
+                                ...prev,
+                                ...algorithms
+                                .filter((a) => a.type === 'boosting')
+                                .map((a) => a.id),
+                            ]),
+                            ]);
+                        }}
+                        useSmote={useSmote}
+                        comparisonMode={comparisonMode}
+                        isTraining={isTraining}
+                        trainingProgress={trainingProgress}
+                        onUseSmoteChange={setUseSmote}
+                        onComparisonModeChange={setComparisonMode}
+                        onStart={handleTraining}
+                    />
+                </div>
+                <div className="flex justify-between items-center">
+                    <Button 
+                        variant="ghost" 
+                        onClick={() => setTrainingStep(1)}
+                    >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Previous
+                    </Button>
+                    <Button 
+                        onClick={() => setTrainingStep(3)}
+                        disabled={!trainingComplete}
+                        className="gap-2"
+                    >
+                        View Results
+                        <ArrowRight className="h-4 w-4" />
+                    </Button>
+                </div>
+              </div>
+            )}
+
+            {trainingStep === 3 && (results || comparisonResults) && (
+              <div className='space-y-6 animate-fade-in max-w-7xl mx-auto'>
+                 <div className="flex items-center justify-between">
+                    <Button 
+                        variant="ghost" 
+                        onClick={() => setTrainingStep(2)}
+                    >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to Configuration
+                    </Button>
+                    <Button 
+                        onClick={() => setTrainingStep(4)}
+                        className="gap-2"
+                    >
+                        Next: Export Results
+                        <ArrowRight className="h-4 w-4" />
+                    </Button>
+                 </div>
+                 
+                 <ResultsSummary
+                    results={results}
+                    comparisonResults={comparisonResults}
+                    metadata={metadata}
+                    statisticalAnalysis={statisticalAnalysis}
+                  />
+              </div>
+            )}
+
+            {trainingStep === 4 && (results || comparisonResults) && (
+              <div className='space-y-6 animate-fade-in max-w-7xl mx-auto'>
+                 <div className="flex items-center justify-between">
+                    <Button 
+                        variant="ghost" 
+                        onClick={() => setTrainingStep(3)}
+                    >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to Results
+                    </Button>
+                    <Button 
+                        onClick={() => {
+                            setTrainingStep(1);
+                            setSelectedFile(null);
+                            setDatasetValid(false);
+                            setDatasetPreview([]);
+                            setResults(null);
+                            setComparisonResults(null);
+                        }}
+                    >
+                        Start New Analysis
+                    </Button>
+                 </div>
+
+                  <ExportPanel
+                    onExportJSON={exportJSON}
+                    onExportCSV={exportCSV}
+                    onExportReport={exportAcademicReport}
+                    loading={exportLoading}
+                  />
               </div>
             )}
           </div>
-        )}
-
-        {!predictionMode &&
-          trainingComplete &&
-          (results || comparisonResults) && (
-            <div className='space-y-6 animate-fade-in'>
-              <ResultsSummary
-                results={results}
-                comparisonResults={comparisonResults}
-                metadata={metadata}
-                statisticalAnalysis={statisticalAnalysis}
-              />
-              <ExportPanel
-                onExportJSON={exportJSON}
-                onExportCSV={exportCSV}
-                onExportReport={exportAcademicReport}
-                loading={exportLoading}
-              />
-            </div>
-          )}
+        </div>
       </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

@@ -11,6 +11,14 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Trophy, ArrowRight, Minus } from 'lucide-react';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
   ResponsiveContainer,
   RadarChart,
   Radar,
@@ -212,32 +220,33 @@ export default function ResultsSummary({
                    <Trophy className="h-5 w-5 text-yellow-500" />
                    Head-to-Head Comparison
                 </h4>
-                <table className='w-full text-sm border-collapse'>
-                  <thead>
-                    <tr className='border-b-2 border-slate-100 dark:border-slate-800'>
-                      <th className='text-left p-3 font-semibold text-slate-600 dark:text-slate-400'>Algorithm</th>
-                      <th className='text-left p-3 font-semibold text-slate-600 dark:text-slate-400'>Without SMOTE</th>
-                      <th className='text-left p-3 font-semibold text-slate-600 dark:text-slate-400'>With SMOTE</th>
-                      <th className='text-left p-3 font-semibold text-slate-600 dark:text-slate-400'>Winner</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.keys(comparisonResults.without_smote).map(id => {
+                <div className='rounded-md border'>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Algorithm</TableHead>
+                        <TableHead>Without SMOTE</TableHead>
+                        <TableHead>With SMOTE</TableHead>
+                        <TableHead>Winner</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Object.keys(comparisonResults.without_smote).map(id => {
                         const wOut = comparisonResults.without_smote[id];
                         const wIn = comparisonResults.with_smote[id];
                         if (!wOut || !wIn || !wOut.metrics || !wIn.metrics) return null;
                         const win = getWinner(wOut, wIn);
                         
                         return (
-                            <tr key={id} className='border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors'>
-                            <td className='p-3 font-medium'>{wOut.name}</td>
-                            <td className='p-3 font-mono text-slate-600 dark:text-slate-400'>
+                          <TableRow key={id}>
+                            <TableCell className="font-medium">{wOut.name}</TableCell>
+                            <TableCell className="font-mono text-slate-600 dark:text-slate-400">
                                 {format(wOut.metrics.accuracy)}
-                            </td>
-                            <td className='p-3 font-mono text-slate-600 dark:text-slate-400'>
+                            </TableCell>
+                            <TableCell className="font-mono text-slate-600 dark:text-slate-400">
                                 {format(wIn.metrics.accuracy)}
-                            </td>
-                            <td className='p-3'>
+                            </TableCell>
+                            <TableCell>
                                 {win?.winner === 'tie' && (
                                     <Badge variant="outline" className="gap-1.5 text-slate-500">
                                         <Minus className="h-3.5 w-3.5" />
@@ -256,12 +265,13 @@ export default function ResultsSummary({
                                         Without SMOTE
                                     </Badge>
                                 )}
-                            </td>
-                            </tr>
+                            </TableCell>
+                          </TableRow>
                         );
-                    })}
-                  </tbody>
-                </table>
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
 
               <div className='overflow-x-auto'>

@@ -263,7 +263,7 @@ export default function DatasetConfigCard({
             <Button
               onClick={onStart}
               disabled={isTraining || selectedCount === 0 || !datasetValid}
-              className='w-full bg-primary hover:bg-primary/90 text-white font-serif font-bold text-lg py-4 rounded-2xl shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-3xl'
+              className='w-full bg-primary hover:bg-primary/90 text-white font-serif font-bold text-lg py-4 rounded-2xl shadow-2xl transition-all duration-300'
               size='lg'
             >
               {isTraining ? (

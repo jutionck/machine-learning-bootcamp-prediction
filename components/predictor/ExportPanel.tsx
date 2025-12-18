@@ -21,11 +21,11 @@ export default function ExportPanel({
       <h2 className='text-2xl font-serif font-bold text-slate-800 dark:text-slate-200'>
         Export Results
       </h2>
-      <div className='flex gap-4'>
+      <div className='flex flex-col sm:flex-row gap-4 flex-wrap'>
         <Button
           onClick={onExportJSON}
           disabled={loading}
-          className='bg-primary text-white hover:bg-primary/90'
+          className='bg-primary text-white hover:bg-primary/90 flex-1'
         >
           {loading ? (
             <>
@@ -39,7 +39,7 @@ export default function ExportPanel({
         <Button
           onClick={onExportCSV}
           disabled={loading}
-          className='bg-primary text-white hover:bg-primary/90'
+          className='bg-primary text-white hover:bg-primary/90 flex-1'
         >
           {loading ? (
             <>
@@ -52,7 +52,7 @@ export default function ExportPanel({
         <Button
           onClick={onExportReport}
           disabled={loading}
-          className='bg-primary text-white hover:bg-primary/90'
+          className='bg-primary text-white hover:bg-primary/90 flex-1'
         >
           {loading ? (
             <>

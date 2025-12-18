@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
+
 import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { datasetAttributes } from '@/lib/constants';
 
@@ -19,11 +19,7 @@ type Props = {
   selectedFile: File | null;
   datasetValid: boolean;
   datasetPreview: any[];
-  comparisonMode: boolean;
-  useSmote: boolean;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onComparisonModeChange: (value: boolean) => void;
-  onUseSmoteChange: (value: boolean) => void;
   showInlinePreview?: boolean;
   validationErrors?: string[];
 };
@@ -33,11 +29,7 @@ export default function UploadPanel(props: Props) {
     selectedFile,
     datasetValid,
     datasetPreview,
-    comparisonMode,
-    useSmote,
     onFileChange,
-    onComparisonModeChange,
-    onUseSmoteChange,
     showInlinePreview = true,
     validationErrors = [],
   } = props;
@@ -58,16 +50,28 @@ export default function UploadPanel(props: Props) {
         </CardHeader>
         <CardContent className='space-y-6'>
           <div>
-            <Label htmlFor='file-upload' className='font-serif font-semibold'>
-              Dataset File
-            </Label>
-            <Input
-              id='file-upload'
-              type='file'
-              accept='.csv'
-              onChange={onFileChange}
-              className='mt-2 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-primary transition-colors duration-300 rounded-xl py-3'
-            />
+            <div className="group relative mt-2">
+              <div className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-primary/50 transition-all duration-300 cursor-pointer">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <div className="p-3 bg-primary/10 rounded-full mb-3 group-hover:scale-110 transition-transform duration-300">
+                    <Upload className="w-6 h-6 text-primary" />
+                  </div>
+                  <p className="mb-2 text-sm text-slate-500 dark:text-slate-400">
+                    <span className="font-semibold text-primary">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                    CSV file (max. 10MB)
+                  </p>
+                </div>
+                <Input
+                  id="file-upload"
+                  type="file"
+                  accept=".csv"
+                  onChange={onFileChange}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+              </div>
+            </div>
             {selectedFile && (
               <div className='mt-4 space-y-3'>
                 <div className='flex items-center gap-3 text-sm p-3 bg-slate-50 dark:bg-slate-700 rounded-lg'>
@@ -123,29 +127,29 @@ export default function UploadPanel(props: Props) {
             <Label className='text-sm font-semibold'>
               Required Dataset Attributes:
             </Label>
-            <div className='space-y-2 text-xs'>
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 text-xs'>
               {datasetAttributes.map((attr, idx) => (
                 <div
                   key={idx}
-                  className='flex flex-col space-y-1 p-2 bg-gray-50 dark:bg-gray-800 rounded'
+                  className='flex flex-col space-y-1 p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-100 dark:border-gray-700'
                 >
                   <div className='flex items-center justify-between'>
                     <span className='font-medium'>{attr.name}</span>
-                    <Badge variant='outline' className='text-xs'>
+                    <Badge variant='outline' className='text-[10px] h-4 px-1'>
                       {attr.type}
                     </Badge>
                   </div>
-                  <span className='text-gray-600 dark:text-gray-400'>
+                  <span className='text-gray-600 dark:text-gray-400 text-[10px] line-clamp-1' title={attr.description}>
                     {attr.description}
                   </span>
                   {'values' in (attr as any) &&
                     Array.isArray((attr as any).values) && (
-                      <span className='text-blue-600 dark:text-blue-400'>
-                        Values: {(attr as any).values.join(', ')}
+                      <span className='text-blue-600 dark:text-blue-400 text-[10px] line-clamp-1' title={(attr as any).values.join(', ')}>
+                         Values: {(attr as any).values.join(', ')}
                       </span>
                     )}
                   {'min' in (attr as any) && 'max' in (attr as any) && (
-                    <span className='text-green-600 dark:text-green-400'>
+                    <span className='text-green-600 dark:text-green-400 text-[10px]'>
                       Range: {(attr as any).min}-{(attr as any).max}
                     </span>
                   )}
@@ -154,51 +158,7 @@ export default function UploadPanel(props: Props) {
             </div>
           </div>
 
-          <div className='flex items-center space-x-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg'>
-            <Switch
-              id='comparison-toggle'
-              checked={comparisonMode}
-              onCheckedChange={onComparisonModeChange}
-              className='data-[state=checked]:bg-primary'
-            />
-            <Label
-              htmlFor='comparison-toggle'
-              className='font-serif font-medium'
-            >
-              SMOTE Comparison Mode
-            </Label>
-          </div>
 
-          {!comparisonMode && (
-            <div className='flex items-center space-x-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg'>
-              <Switch
-                id='smote-toggle'
-                checked={useSmote}
-                onCheckedChange={onUseSmoteChange}
-                className='data-[state=checked]:bg-primary'
-              />
-              <Label htmlFor='smote-toggle' className='font-serif font-medium'>
-                Apply SMOTE (Synthetic Minority Oversampling)
-              </Label>
-            </div>
-          )}
-
-          {comparisonMode && (
-            <Alert className='border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'>
-              <AlertDescription className='text-xs text-blue-700 dark:text-blue-300'>
-                Comparison mode will train all algorithms both with and without
-                SMOTE for detailed analysis
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {!comparisonMode && useSmote && (
-            <Alert className='border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'>
-              <AlertDescription className='text-xs text-green-700 dark:text-green-300'>
-                SMOTE will be applied to balance the dataset before training
-              </AlertDescription>
-            </Alert>
-          )}
         </CardContent>
       </Card>
 

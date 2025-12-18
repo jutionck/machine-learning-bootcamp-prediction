@@ -1,113 +1,77 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { promises as fs } from "fs"
+import { constants as fsConstants } from "fs"
+import path from "path"
+import { execFile } from "child_process"
+import { promisify } from "util"
+
+const execFileAsync = promisify(execFile)
 
 export async function POST(request: NextRequest) {
   try {
     const { participant_data, trained_models } = await request.json()
 
-    // Simulate prediction logic (in real implementation, you'd use your trained models)
-    // NOTE: Response shape is aligned with the UI (PredictionPanel) which expects an array:
-    // { predictions: [{ algorithm, modelId, prediction, probability }] }
-    const predictionsByModel: {
-      [key: string]: { prediction: string; probability: number }
-    } = {}
-    const predictions: Array<{
-      algorithm: string
-      modelId: string
-      prediction: "pass" | "fail"
-      probability: number
-    }> = []
-
-    const algorithmLabel: Record<string, string> = {
-      logistic: "Logistic Regression",
-      decision_tree: "Decision Tree",
-      knn: "KNN",
-      svm: "SVM",
-      adaboost: "AdaBoost",
-      xgboost: "XGBoost",
+    if (!participant_data || !trained_models || trained_models.length === 0) {
+      return NextResponse.json({ error: "Missing data" }, { status: 400 })
     }
 
-    // Mock prediction logic based on participant data
-    const logicalScore = Number.parseInt(participant_data.logical_test_score)
-    const techScore = Number.parseInt(participant_data.tech_interview_score)
-    const hasExperience = participant_data.experience === "yes"
-    const isIT = participant_data.majoring === "IT"
-    const age = Number.parseInt(participant_data.age)
+    // Remap keys to match training data expectations if needed
+    // The training data typically uses: logical_test_score, tech_interview_grades, grades, majoring, age, gender (L/P)
+    const cleanedData = { ...participant_data };
 
-    // Calculate base success probability
-    let baseSuccessProb = 0.5
+    // Map 'tech_interview_score' (frontend props) to 'tech_interview_grades' (likely dataset col)
+    if (cleanedData.tech_interview_score !== undefined && cleanedData.tech_interview_grades === undefined) {
+      cleanedData.tech_interview_grades = cleanedData.tech_interview_score;
+    }
 
-    // Adjust based on scores
-    if (logicalScore >= 80) baseSuccessProb += 0.2
-    else if (logicalScore >= 60) baseSuccessProb += 0.1
-    else if (logicalScore < 40) baseSuccessProb -= 0.2
+    // Convert numeric strings to numbers for safety (though Python handles it via transform, ensuring cleaner JSON is good)
+    // Actually, passing strings is fine as the python script casts them in `predict_new_data` or `DataFrame` construction.
 
-    if (techScore >= 80) baseSuccessProb += 0.2
-    else if (techScore >= 65) baseSuccessProb += 0.1
-    else if (techScore < 50) baseSuccessProb -= 0.2
+    const projectRoot = process.cwd()
+    const scriptPath = path.join(projectRoot, "scripts", "run_predictor.py")
 
-    // Adjust based on experience and background
-    if (hasExperience) baseSuccessProb += 0.15
-    if (isIT) baseSuccessProb += 0.1
-    if (age >= 25 && age <= 35) baseSuccessProb += 0.05
-
-    // Generate predictions for each trained model with slight variations
-    const modelIds: string[] = Array.isArray(trained_models) ? trained_models : []
-
-    modelIds.forEach((modelId: string) => {
-      let modelProb = baseSuccessProb
-
-      // Add model-specific variations
-      switch (modelId) {
-        case "logistic":
-          modelProb += (Math.random() - 0.5) * 0.1
-          break
-        case "decision_tree":
-          modelProb += (Math.random() - 0.5) * 0.15
-          break
-        case "knn":
-          modelProb += (Math.random() - 0.5) * 0.12
-          break
-        case "svm":
-          modelProb += (Math.random() - 0.5) * 0.08
-          break
-        case "adaboost":
-          modelProb += (Math.random() - 0.5) * 0.06
-          break
-        case "xgboost":
-          modelProb += (Math.random() - 0.5) * 0.05
-          break
+    // Determine Python
+    let pyCmd = process.env.PYTHON_PATH
+    if (!pyCmd) {
+      const venvPython = path.join(
+        projectRoot,
+        ".venv",
+        process.platform === "win32" ? "Scripts" : "bin",
+        process.platform === "win32" ? "python.exe" : "python",
+      )
+      try {
+        await fs.access(venvPython, fsConstants.X_OK)
+        pyCmd = venvPython
+      } catch {
+        // ignore
       }
+    }
+    if (!pyCmd) pyCmd = "python3"
 
-      // Ensure probability is within bounds
-      modelProb = Math.max(0.1, Math.min(0.9, modelProb))
+    // Execute
+    const args = [
+      scriptPath,
+      "--participant", JSON.stringify(cleanedData),
+      "--models", trained_models.join(","),
+      "--models_dir", path.join(projectRoot, "saved_models")
+    ]
 
-      const prediction = modelProb > 0.5 ? "pass" : "fail"
-      predictionsByModel[modelId] = {
-        prediction,
-        probability: modelProb,
-      }
-      predictions.push({
-        algorithm: algorithmLabel[modelId] ?? modelId,
-        modelId,
-        prediction,
-        probability: modelProb,
-      })
-    })
+    const { stdout, stderr } = await execFileAsync(pyCmd, args, { cwd: projectRoot })
 
-    return NextResponse.json({
-      success: true,
-      predictions,
-      predictions_by_model: predictionsByModel,
-      participant_summary: {
-        logical_score: logicalScore,
-        tech_score: techScore,
-        has_experience: hasExperience,
-        is_it_background: isIT,
-        age: age,
-      },
-    })
-  } catch (error) {
+    if (stderr) {
+      console.warn("[predict stderr]", stderr)
+    }
+
+    const result = JSON.parse(stdout)
+
+    if (result.error) {
+      throw new Error(result.error)
+    }
+
+    return NextResponse.json(result)
+
+  } catch (error: any) {
     console.error("Prediction error:", error)
-    return NextResponse.json({ error: "Prediction failed" }, { status: 500 })
+    return NextResponse.json({ error: "Prediction failed", message: error.message }, { status: 500 })
   }
 }

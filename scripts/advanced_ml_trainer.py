@@ -13,6 +13,8 @@ from imblearn.over_sampling import SMOTE
 import shap
 import json
 import sys
+import os
+import joblib
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -79,6 +81,7 @@ class AdvancedMLBootcampPredictor:
         
         self.scaler = StandardScaler()
         self.label_encoder = LabelEncoder()
+        self.column_encoders = {}
         self.feature_names = []
         
     def _counts_dict(self, labels):
@@ -127,14 +130,15 @@ class AdvancedMLBootcampPredictor:
                 # Handle education levels with proper ordering
                 education_order = {'SMA': 1, 'D3': 2, 'S1': 3, 'S2': 4, 'S3': 5}
                 X[col] = X[col].map(education_order).fillna(1)  # Default to SMA if unknown
-            elif col == 'majoring':
                 # Use label encoding for majoring (text field)
                 le = LabelEncoder()
                 X[col] = le.fit_transform(X[col].astype(str))
+                self.column_encoders[col] = le
             else:
                 # General categorical encoding
                 le = LabelEncoder()
                 X[col] = le.fit_transform(X[col].astype(str))
+                self.column_encoders[col] = le
         
         # Validate score constraints
         if 'logical_test_score' in X.columns:
@@ -279,7 +283,7 @@ class AdvancedMLBootcampPredictor:
         }
         return metrics
     
-    def train_and_evaluate_advanced(self, data_path, target_column, selected_algorithms, use_smote=False):
+    def train_and_evaluate_advanced(self, data_path, target_column, selected_algorithms, use_smote=False, save_dir=None):
         """Advanced training with hyperparameter tuning, feature importance, and SHAP"""
         try:
             # Load data
@@ -298,6 +302,12 @@ class AdvancedMLBootcampPredictor:
             
             if use_smote:
                 print(f"SMOTE applied to training set: {X_train.shape[0]} samples")
+            
+            if save_dir:
+                os.makedirs(save_dir, exist_ok=True)
+                joblib.dump(self.scaler, os.path.join(save_dir, 'scaler.joblib'))
+                joblib.dump(self.label_encoder, os.path.join(save_dir, 'label_encoder.joblib'))
+                joblib.dump(self.column_encoders, os.path.join(save_dir, 'column_encoders.joblib'))
             
             results = {}
             predictions = {}  # Store predictions for McNemar test
@@ -344,7 +354,11 @@ class AdvancedMLBootcampPredictor:
                 print(f"  Best params: {best_params}")
                 print(f"  Validation F1: {val_score:.4f}")
                 print(f"  Test Accuracy: {metrics['accuracy']:.4f}")
+                print(f"  Test Accuracy: {metrics['accuracy']:.4f}")
                 print(f"  Test F1: {metrics['f1_score']:.4f}")
+                
+                if save_dir:
+                    joblib.dump(best_model, os.path.join(save_dir, f'{alg_id}.joblib'))
             
             conventional_algs = [alg for alg in selected_algorithms if alg in ['logistic', 'decision_tree', 'knn', 'svm']]
             boosting_algs = [alg for alg in selected_algorithms if alg in ['adaboost', 'xgboost']]
@@ -396,6 +410,109 @@ class AdvancedMLBootcampPredictor:
         except Exception as e:
             print(f"Error during advanced training: {str(e)}")
             return {'error': str(e)}
+
+    def load_artifacts(self, load_dir):
+        """Load models and preprocessors"""
+        self.scaler = joblib.load(os.path.join(load_dir, 'scaler.joblib'))
+        self.label_encoder = joblib.load(os.path.join(load_dir, 'label_encoder.joblib'))
+        self.column_encoders = joblib.load(os.path.join(load_dir, 'column_encoders.joblib'))
+        return self
+
+    def predict_new_data(self, data_dict, model_ids, models_dir='saved_models'):
+        """
+        Predict for a single participant
+        data_dict: dictionary of feature values
+        model_ids: list of algorithm names to use
+        """
+        import pandas as pd
+        
+        # Convert single dict to DataFrame
+        df = pd.DataFrame([data_dict])
+        
+        # 1. Preprocess
+        # Manual mapping for ordered/specific columns
+        if 'gender' in df.columns:
+             df['gender'] = df['gender'].map({'L': 0, 'P': 1})
+        
+        if 'grades' in df.columns:
+            education_order = {'SMA': 1, 'D3': 2, 'S1': 3, 'S2': 4, 'S3': 5}
+            # Fill unknown with default (SMA=1) or handle error
+            df['grades'] = df['grades'].map(education_order).fillna(1)
+            
+        # Apply strict column encoding
+        for col, le in self.column_encoders.items():
+            if col in df.columns:
+                # Handle unseen labels carefully? For now assume valid input or try/except
+                try:
+                    df[col] = le.transform(df[col].astype(str))
+                except ValueError:
+                    # Fallback for unseen labels: assign to most frequent (0 usually) or error
+                    df[col] = 0 
+        
+        # Scale
+        # Ensure we have the same columns as training (self.feature_names)
+        # We need to reorder/select columns to match scaler input
+        # Note: self.feature_names was saved during training
+        
+        # If feature_names is empty (new instance), we rely on scaler.feature_names_in_ if available
+        # But we didn't save feature_names explicitly in load_artifacts (only inferred). 
+        # Safer to rely on dataframe columns matching if possible, but alignment is critical.
+        
+        # Let's align columns
+        X_aligned = pd.DataFrame(index=df.index)
+        
+        # We assume scaler was fitted on specific columns. 
+        # In sklearn > 1.0, scaler has feature_names_in_.
+        if hasattr(self.scaler, 'feature_names_in_'):
+            dataset_features = self.scaler.feature_names_in_
+        else:
+            # Fallback (risky if usage changes)
+            dataset_features = df.columns
+            
+        for feature in dataset_features:
+            if feature in df.columns:
+                X_aligned[feature] = df[feature]
+            else:
+                X_aligned[feature] = 0 # Missing feature
+                
+        X_scaled = self.scaler.transform(X_aligned)
+        
+        predictions = {}
+        for alg_id in model_ids:
+            model_path = os.path.join(models_dir, f'{alg_id}.joblib')
+            if not os.path.exists(model_path):
+                predictions[alg_id] = {'error': 'Model not found'}
+                continue
+                
+            model = joblib.load(model_path)
+            prob = 0.5
+            pred_class = "unknown"
+            
+            try:
+                # Predict probability
+                if hasattr(model, 'predict_proba'):
+                    prob = model.predict_proba(X_scaled)[0][1] # Probability of class 1 (Pass)
+                else:
+                    # Fallback for models without proba (shouldn't happen with our config)
+                    pred = model.predict(X_scaled)[0]
+                    prob = 1.0 if pred == 1 else 0.0
+                
+                # We used label encoder for target (Fail=0, Pass=1 usually, but check class order)
+                # target encoder classes are sorted. 0=failed (f comes before p?), 1=pass
+                # Let's verify class order: 'failed', 'pass'. 'failed' < 'pass'. So 0=failed, 1=pass.
+                
+                # Return standardized format
+                pred_label = 'pass' if prob > 0.5 else 'fail'
+                confidence = prob if prob > 0.5 else 1 - prob
+                
+                predictions[alg_id] = {
+                    'prediction': pred_label,
+                    'confidence': float(confidence)
+                }
+            except Exception as e:
+                predictions[alg_id] = {'error': str(e)}
+                
+        return predictions
 
 def main():
     """Main function for advanced ML training"""

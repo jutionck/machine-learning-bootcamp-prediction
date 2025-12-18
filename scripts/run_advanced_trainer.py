@@ -22,7 +22,7 @@ def main():
     # Capture all prints from the trainer to avoid polluting stdout JSON
     with contextlib.redirect_stdout(log_buffer):
         results = predictor.train_and_evaluate_advanced(
-            args.data_path, args.target_column, algos, use_smote=args.use_smote
+            args.data_path, args.target_column, algos, use_smote=args.use_smote, save_dir='saved_models'
         )
 
     logs = log_buffer.getvalue()

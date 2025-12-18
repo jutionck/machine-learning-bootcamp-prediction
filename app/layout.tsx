@@ -1,6 +1,7 @@
 import type React from 'react';
 import { Montserrat, Open_Sans } from 'next/font/google';
 import './globals.css';
+import { ModelProvider } from '@/lib/context/ModelContext';
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -26,7 +27,9 @@ export default function RootLayout({
       className={`${montserrat.variable} ${openSans.variable} antialiased`}
     >
       <body className='font-sans' suppressHydrationWarning>
-        {children}
+        <ModelProvider>
+          {children}
+        </ModelProvider>
       </body>
     </html>
   );

@@ -1,94 +1,81 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { promises as fs } from "fs"
+import { constants as fsConstants } from "fs"
+import os from "os"
+import path from "path"
+import { execFile } from "child_process"
+import { promisify } from "util"
+
+const execFileAsync = promisify(execFile)
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { file_data, target_column, algorithms } = body
 
-    // Simulate training both with and without SMOTE
-    const generateResults = (useSmote: boolean) => {
-      const basePerformance = {
-        logistic: { accuracy: 0.85, precision: 0.82, recall: 0.88, f1_score: 0.85, roc_auc: 0.87 },
-        decision_tree: { accuracy: 0.78, precision: 0.76, recall: 0.82, f1_score: 0.79, roc_auc: 0.81 },
-        knn: { accuracy: 0.8, precision: 0.78, recall: 0.84, f1_score: 0.81, roc_auc: 0.83 },
-        svm: { accuracy: 0.83, precision: 0.81, recall: 0.86, f1_score: 0.83, roc_auc: 0.85 },
-        adaboost: { accuracy: 0.87, precision: 0.85, recall: 0.89, f1_score: 0.87, roc_auc: 0.89 },
-        xgboost: { accuracy: 0.89, precision: 0.87, recall: 0.91, f1_score: 0.89, roc_auc: 0.91 },
-      }
-
-      const results: any = {}
-
-      algorithms.forEach((algId: string) => {
-        if (basePerformance[algId as keyof typeof basePerformance]) {
-          const base = basePerformance[algId as keyof typeof basePerformance]
-
-          // SMOTE typically improves recall but may slightly reduce precision
-          const smoteEffect = useSmote
-            ? {
-              accuracy: (Math.random() - 0.5) * 0.02, // Small random change
-              precision: (Math.random() - 0.7) * 0.03, // Slight tendency to decrease
-              recall: (Math.random() + 0.3) * 0.04, // Tendency to increase
-              f1_score: (Math.random() - 0.3) * 0.025, // Mixed effect
-              roc_auc: (Math.random() - 0.2) * 0.02, // Slight tendency to improve
-            }
-            : { accuracy: 0, precision: 0, recall: 0, f1_score: 0, roc_auc: 0 }
-
-          results[algId] = {
-            name: {
-              logistic: "Logistic Regression",
-              decision_tree: "Decision Tree",
-              knn: "k-Nearest Neighbors",
-              svm: "Support Vector Machine",
-              adaboost: "AdaBoost",
-              xgboost: "XGBoost",
-            }[algId],
-            metrics: {
-              accuracy: Math.max(0.5, Math.min(0.99, base.accuracy + smoteEffect.accuracy)),
-              precision: Math.max(0.5, Math.min(0.99, base.precision + smoteEffect.precision)),
-              recall: Math.max(0.5, Math.min(0.99, base.recall + smoteEffect.recall)),
-              f1_score: Math.max(0.5, Math.min(0.99, base.f1_score + smoteEffect.f1_score)),
-              roc_auc: Math.max(0.5, Math.min(0.99, base.roc_auc + smoteEffect.roc_auc)),
-            },
-            type: ["logistic", "decision_tree", "knn", "svm"].includes(algId) ? "conventional" : "boosting",
-          }
-        }
-      })
-
-      return results
+    if (!file_data || !algorithms || algorithms.length === 0) {
+      return NextResponse.json({ success: false, error: "Missing data" }, { status: 400 })
     }
 
-    const withoutSmote = generateResults(false)
-    const withSmote = generateResults(true)
+    // 1. Write file_data to temp file
+    // Assuming file_data is the raw CSV string content
+    const tmpFilePath = path.join(os.tmpdir(), `ml_compare_${Date.now()}.csv`)
+    await fs.writeFile(tmpFilePath, file_data)
 
-    // Generate comparison data
-    const comparison: any = {}
-    algorithms.forEach((algId: string) => {
-      if (withoutSmote[algId] && withSmote[algId]) {
-        comparison[algId] = {
-          name: withoutSmote[algId].name,
-          improvements: {
-            accuracy: withSmote[algId].metrics.accuracy - withoutSmote[algId].metrics.accuracy,
-            precision: withSmote[algId].metrics.precision - withoutSmote[algId].metrics.precision,
-            recall: withSmote[algId].metrics.recall - withoutSmote[algId].metrics.recall,
-            f1_score: withSmote[algId].metrics.f1_score - withoutSmote[algId].metrics.f1_score,
-            roc_auc: withSmote[algId].metrics.roc_auc - withoutSmote[algId].metrics.roc_auc,
-          },
-        }
+    const projectRoot = process.cwd()
+    const scriptPath = path.join(projectRoot, "scripts", "run_comparison_trainer.py")
+
+    // 2. Determine Python Path (env -> venv -> system)
+    let pyCmd = process.env.PYTHON_PATH
+    if (!pyCmd) {
+      const venvPython = path.join(
+        projectRoot,
+        ".venv",
+        process.platform === "win32" ? "Scripts" : "bin",
+        process.platform === "win32" ? "python.exe" : "python",
+      )
+      try {
+        await fs.access(venvPython, fsConstants.X_OK)
+        pyCmd = venvPython
+      } catch {
+        // ignore
       }
+    }
+    if (!pyCmd) pyCmd = "python3"
+
+    // 3. Execute Script
+    const algCsv = Array.isArray(algorithms) ? algorithms.join(",") : algorithms
+    const args = [
+      scriptPath,
+      "--data_path", tmpFilePath,
+      "--target_column", target_column || "class",
+      "--algorithms", algCsv
+    ]
+
+    const { stdout, stderr } = await execFileAsync(pyCmd, args, { cwd: projectRoot })
+
+    if (stderr) {
+      console.warn("[compare stderr]", stderr)
+    }
+
+    // 4. Parse Results
+    const results = JSON.parse(stdout)
+
+    if (results.error) {
+      throw new Error(results.error)
+    }
+
+    // Clean up temp file
+    // await fs.unlink(tmpFilePath).catch(() => {}) 
+
+    return NextResponse.json({
+      success: true,
+      results: results,
+      message: "Successfully ran comparison analysis"
     })
 
-    const comparisonResults = {
-      success: true,
-      results: {
-        without_smote: withoutSmote,
-        with_smote: withSmote,
-        comparison: comparison,
-      },
-      message: `Successfully compared ${algorithms.length} algorithms with and without SMOTE`,
-    }
-
-    return NextResponse.json(comparisonResults)
-  } catch (error) {
-    return NextResponse.json({ success: false, error: "Comparison failed", message: error }, { status: 500 })
+  } catch (error: any) {
+    console.error("Comparison error:", error)
+    return NextResponse.json({ success: false, error: "Comparison failed", message: error.message }, { status: 500 })
   }
 }
