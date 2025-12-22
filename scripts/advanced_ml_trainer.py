@@ -145,6 +145,13 @@ class AdvancedMLBootcampPredictor:
             X['logical_test_score'] = X['logical_test_score'].clip(lower=60)
         if 'tech_interview_grades' in X.columns:
             X['tech_interview_grades'] = X['tech_interview_grades'].clip(lower=65)
+
+        # Handle missing values (NaN) in numeric columns prevents classifier errors
+        numeric_columns = X.select_dtypes(include=['number']).columns
+        if len(numeric_columns) > 0:
+            from sklearn.impute import SimpleImputer
+            imputer = SimpleImputer(strategy='mean')
+            X[numeric_columns] = imputer.fit_transform(X[numeric_columns])
         
         # Encode target variable (pass/failed)
         y_encoded = self.label_encoder.fit_transform(y)

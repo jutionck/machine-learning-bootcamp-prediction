@@ -139,8 +139,8 @@ export async function POST(request: NextRequest) {
         decision_tree: { accuracy: 0.78, precision: 0.76, recall: 0.82, f1_score: 0.79, roc_auc: 0.81 },
         knn: { accuracy: 0.8, precision: 0.78, recall: 0.84, f1_score: 0.81, roc_auc: 0.83 },
         svm: { accuracy: 0.83, precision: 0.81, recall: 0.86, f1_score: 0.83, roc_auc: 0.85 },
-        adaboost: { accuracy: 0.87, precision: 0.85, recall: 0.89, f1_score: 0.87, roc_auc: 0.89 },
-        xgboost: { accuracy: 0.89, precision: 0.87, recall: 0.91, f1_score: 0.89, roc_auc: 0.91 },
+        adaboost: { accuracy: 0.89, precision: 0.88, recall: 0.90, f1_score: 0.89, roc_auc: 0.91 },
+        xgboost: { accuracy: 0.87, precision: 0.86, recall: 0.88, f1_score: 0.87, roc_auc: 0.90 },
       }
 
       const hyperparameterOptions = {

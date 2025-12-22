@@ -36,5 +36,7 @@ export default function RootLayout({
 }
 
 export const metadata = {
+  title: 'Machine Learning Bootcamp Prediction',
+  description: 'Advanced Prediction System for Bootcamp Students',
   generator: 'v0.app',
 };

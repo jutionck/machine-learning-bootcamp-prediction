@@ -45,11 +45,9 @@ export default function MLBootcampPredictor() {
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedAlgorithms, setSelectedAlgorithms] = useState<string[]>([]);
-  const [useSmote, setUseSmote] = useState(false);
   const [isTraining, setIsTraining] = useState(false);
   const [trainingComplete, setTrainingComplete] = useState(false);
 
-  const [comparisonMode, setComparisonMode] = useState(false);
   const [trainingProgress, setTrainingProgress] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
   const [exportLoading, setExportLoading] = useState(false);
@@ -100,17 +98,44 @@ export default function MLBootcampPredictor() {
         }, {} as any)
       );
 
-      setDatasetPreview(sampleRows);
+      const normalizedRows = sampleRows.map(row => {
+          const newRow = { ...row };
+          
+          if (newRow.class) {
+             const cls = newRow.class.toString().toLowerCase().trim();
+             if (cls === '0' || cls === '0.0' || cls === 'fail' || cls === 'failed') newRow.class = 'failed';
+             else if (cls === '1' || cls === '1.0' || cls === 'pass' || cls === 'passed') newRow.class = 'pass';
+          }
 
-      // Validate required columns
+          if (newRow.majoring) {
+              const major = newRow.majoring.toString().toLowerCase().trim();
+              const itKeywords = ['it', 'informatika', 'komputer', 'computer', 'sistem informasi', 'software', 'rpl', 'tkj'];
+              if (major === 'it') newRow.majoring = 'IT';
+              else if (major === 'non it') newRow.majoring = 'Non IT';
+              else {
+                  const isIT = itKeywords.some(k => major.includes(k));
+                  newRow.majoring = isIT ? 'IT' : 'Non IT';
+              }
+          }
+          
+          if (newRow.tech_interview_result) {
+              const tr = newRow.tech_interview_result.toString().toLowerCase().trim();
+              if (tr === '1' || tr === '1.0' || tr === 'pass') newRow.tech_interview_result = 'Pass';
+              if (tr === '0' || tr === '0.0' || tr === 'fail' || tr === 'failed') newRow.tech_interview_result = 'Fail';
+          }
+
+          return newRow;
+      });
+
+      setDatasetPreview(normalizedRows);
+
       const requiredColumns = [
         'age',
         'gender',
         'grades',
         'majoring',
-        'experience',
         'logical_test_score',
-        'tech_interview_grades',
+        'tech_interview_result',
         'class',
       ];
       const missingColumns = requiredColumns.filter(
@@ -125,7 +150,7 @@ export default function MLBootcampPredictor() {
         );
       }
 
-      sampleRows.forEach((row, idx) => {
+      normalizedRows.forEach((row, idx) => {
         const logicalScore = Number.parseFloat(row.logical_test_score);
         if (isNaN(logicalScore) || logicalScore < 0 || logicalScore > 100) {
           newValidationErrors.push(
@@ -135,16 +160,11 @@ export default function MLBootcampPredictor() {
           );
         }
 
-        const techScore = Number.parseFloat(row.tech_interview_grades);
-        if (isNaN(techScore) || techScore < 0 || techScore > 100) {
-          newValidationErrors.push(
-            `Row ${idx + 2}: Tech interview score must be 0-100 (found: ${
-              row.tech_interview_grades
-            })`
-          );
+        if (!row.tech_interview_result) {
+            newValidationErrors.push(`Row ${idx + 2}: Tech Interview Result is missing`);
         }
 
-        if (row.gender && !['L', 'P'].includes(row.gender.toUpperCase())) {
+        if (row.gender && !['l', 'p'].includes(row.gender.toLowerCase())) {
           newValidationErrors.push(
             `Row ${idx + 2}: Gender must be 'L' or 'P' (found: ${row.gender})`
           );
@@ -159,18 +179,6 @@ export default function MLBootcampPredictor() {
         }
 
         if (
-          row.experience &&
-          !['yes', 'no'].includes(row.experience.toLowerCase())
-        ) {
-          newValidationErrors.push(
-            `Row ${idx + 2}: Experience must be 'yes' or 'no' (found: ${
-              row.experience
-            })`
-          );
-        }
-
-        // Check class values
-        if (
           row.class &&
           !['pass', 'failed'].includes(row.class.toLowerCase())
         ) {
@@ -182,10 +190,8 @@ export default function MLBootcampPredictor() {
         }
       });
 
-
       setDatasetValid(newValidationErrors.length === 0);
       setValidationErrors(newValidationErrors);
-      // Manual navigation: setTrainingStep(2) removed
     } catch (error) {
       setDatasetValid(false);
       setValidationErrors(['Error parsing CSV file']);
@@ -232,9 +238,9 @@ export default function MLBootcampPredictor() {
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('algorithms', JSON.stringify(selectedAlgorithms));
-      formData.append('use_smote', useSmote.toString());
+      formData.append('use_smote', 'true');
       formData.append('advanced_mode', 'true');
-      formData.append('comparison_mode', comparisonMode.toString());
+      formData.append('comparison_mode', 'true');
 
       const progressInterval = setInterval(() => {
         setTrainingProgress((prev) => {
@@ -264,11 +270,9 @@ export default function MLBootcampPredictor() {
         throw new Error(data.error);
       }
 
-      // Handle automatic SMOTE analysis comparison
       if (data.smote_analysis) {
         setComparisonResults(data.smote_analysis);
       } else if (data.comparison_mode) {
-         // Fallback for legacy if needed
          setComparisonResults({
           without_smote: data.without_smote,
           with_smote: data.with_smote,
@@ -276,15 +280,14 @@ export default function MLBootcampPredictor() {
         });
       }
 
-      // Main results (Best/SMOTE version is usually returned as root keys)
       const {
         metadata: resultMetadata,
         statistical_analysis,
-        smote_analysis, // Exclude from algResults
-        comparison_mode, // Exclude
-        without_smote, // Exclude
-        with_smote, // Exclude
-        comparison, // Exclude
+        smote_analysis,
+        comparison_mode,
+        without_smote,
+        with_smote,
+        comparison,
         ...algorithmResults
       } = data;
 
@@ -292,9 +295,7 @@ export default function MLBootcampPredictor() {
       setMetadata(resultMetadata);
       setStatisticalAnalysis(statistical_analysis);
       setTrainingComplete(true);
-      // Save selected algorithms to global context for prediction
       setGlobalSelectedAlgorithms(selectedAlgorithms);
-      // Manual navigation: setTrainingStep(3) removed
     } catch (error) {
       console.error('Training error:', error);
       setErrors([error instanceof Error ? error.message : 'Training failed']);
@@ -317,7 +318,7 @@ export default function MLBootcampPredictor() {
       const link = document.createElement('a');
       link.href = url;
       link.download = `ml_results_${
-        comparisonResults ? 'comparison' : useSmote ? 'with_smote' : 'no_smote'
+        comparisonResults ? 'comparison' : 'with_smote'
       }_${Date.now()}.json`;
       link.click();
       URL.revokeObjectURL(url);
@@ -396,7 +397,7 @@ export default function MLBootcampPredictor() {
       const link = document.createElement('a');
       link.href = url;
       link.download = `ml_results_${
-        comparisonResults ? 'comparison' : useSmote ? 'with_smote' : 'no_smote'
+        comparisonResults ? 'comparison' : 'with_smote'
       }_${Date.now()}.csv`;
       link.click();
       URL.revokeObjectURL(url);
@@ -415,9 +416,7 @@ export default function MLBootcampPredictor() {
         algorithms_tested: selectedAlgorithms.length,
         smote_applied: comparisonResults
           ? 'Both approaches tested'
-          : useSmote
-          ? 'Yes'
-          : 'No',
+          : 'Yes',
         results: comparisonResults || results,
         metadata: metadata,
         summary: comparisonResults
@@ -429,7 +428,7 @@ export default function MLBootcampPredictor() {
             .filter(Boolean),
           metrics: Object.values(metricNames),
           data_preprocessing:
-            useSmote || comparisonResults
+            comparisonResults
               ? 'SMOTE applied for class balancing'
               : 'Standard preprocessing',
           evaluation: 'Train-test split with stratified sampling',
@@ -448,10 +447,6 @@ export default function MLBootcampPredictor() {
       setExportLoading(false);
     }
   };
-
-  // Removed unused getTopFeatures helper
-
-
 
   return (
     <SidebarProvider>
@@ -558,12 +553,8 @@ export default function MLBootcampPredictor() {
                             ]),
                             ]);
                         }}
-                        useSmote={useSmote}
-                        comparisonMode={comparisonMode}
                         isTraining={isTraining}
                         trainingProgress={trainingProgress}
-                        onUseSmoteChange={setUseSmote}
-                        onComparisonModeChange={setComparisonMode}
                         onStart={handleTraining}
                     />
                 </div>

@@ -55,11 +55,10 @@ export async function POST(request: NextRequest) {
         await fs.writeFile(tempFile, csv_data)
         args.push("--csv_file", tempFile)
       } else {
-        // Remap keys
+        // Remap keys to match backend expectations (if different) or pass through
+        // The frontend now sends: grades, tech_interview_result
+        // The python script expects standard feature names matching the trained model.
         const cleanedData = { ...participant_data };
-        if (cleanedData.tech_interview_score !== undefined && cleanedData.tech_interview_grades === undefined) {
-          cleanedData.tech_interview_grades = cleanedData.tech_interview_score;
-        }
         args.push("--participant", JSON.stringify(cleanedData))
       }
 

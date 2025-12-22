@@ -27,9 +27,8 @@ export default function PredictionPage() {
     gender: '',
     grades: '',
     majoring: '',
-    experience: '',
     logical_test_score: '',
-    tech_interview_score: '',
+    tech_interview_result: '',
   });
   const [predictionResults, setPredictionResults] = useState<any>(null);
   const [isPredicting, setIsPredicting] = useState(false);
@@ -69,9 +68,8 @@ export default function PredictionPage() {
       'gender',
       'grades',
       'majoring',
-      'experience',
       'logical_test_score',
-      'tech_interview_score',
+      'tech_interview_result',
     ];
     const missingFields = requiredFields.filter(
       (field) => !predictionData[field as keyof typeof predictionData]
@@ -186,9 +184,8 @@ export default function PredictionPage() {
       gender: '',
       grades: '',
       majoring: '',
-      experience: '',
       logical_test_score: '',
-      tech_interview_score: '',
+      tech_interview_result: '',
     });
     setPredictionResults(null);
     setErrors([]);

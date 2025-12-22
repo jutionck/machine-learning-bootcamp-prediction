@@ -25,6 +25,18 @@ def main():
         if args.csv_file:
             import pandas as pd
             df = pd.read_csv(args.csv_file)
+            
+            # Column mapping for batch compatibility
+            # Ensure names match model's expected features (Title Case usually)
+            column_map = {
+                'tech_interview_result': 'Tech Interview Result',
+                'education': 'Education', 
+                'grades': 'Education', # Fallback
+                'logical_test_score': 'Logical Test Score',
+                'age': 'Age'
+            }
+            df = df.rename(columns=column_map)
+            
             predictions = predictor.predict_batch(df, model_ids, args.models_dir)
             result = {
                 "success": True,
@@ -36,15 +48,45 @@ def main():
             }
         elif args.participant:
             participant_data = json.loads(args.participant)
+            # Ensure keys match model expectations (Run mapping inside predict_new_data or here)
+            # The model likely expects 'Tech Interview Result' (Title Case) or 'tech_interview_result' depending on how it was trained.
+            # Based on generate_thesis_plots.py, features are: ['Logical Test Score', 'Tech Interview Result', 'Education_Num', 'Age']
+            
+            # Simple mapper for single prediction entry compatibility
+            if 'tech_interview_result' in participant_data:
+                # Handle Pass/Fail -> 1.0/0.0 or keep as is if model expects string
+                val = participant_data['tech_interview_result']
+                if str(val).lower() == 'pass':
+                    participant_data['Tech Interview Result'] = 1.0
+                elif str(val).lower() == 'fail' or str(val).lower() == 'failed':
+                    participant_data['Tech Interview Result'] = 0.0
+                else:
+                    # Fallback for numeric or other strings
+                    try:
+                        participant_data['Tech Interview Result'] = float(val)
+                    except:
+                        participant_data['Tech Interview Result'] = 0.0
+            
+            if 'grades' in participant_data:
+                 participant_data['Grades'] = participant_data['grades']
+            # Fallback/Aliases
+            if 'education' in participant_data and 'Grades' not in participant_data:
+                 participant_data['Grades'] = participant_data['education']
+                 
+            if 'logical_test_score' in participant_data:
+                 participant_data['Logical Test Score'] = float(participant_data['logical_test_score'])
+            if 'age' in participant_data:
+                 participant_data['Age'] = int(participant_data['age'])
+            
             predictions = predictor.predict_new_data(participant_data, model_ids, args.models_dir)
             
             result = {
                 "success": True,
                 "predictions": predictions,
                 "participant_summary": {
-                    "logical_score": int(participant_data.get("logical_test_score", 0)),
-                    "tech_score": int(participant_data.get("tech_interview_grades", 0)),
-                    "age": int(participant_data.get("age", 0))
+                    "logical_score": int(participant_data.get("Logical Test Score", 0)),
+                    "tech_score": int(participant_data.get("Tech Interview Result", 0)),
+                    "age": int(participant_data.get("Age", 0))
                 }
             }
         else:

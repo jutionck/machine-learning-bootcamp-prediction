@@ -53,18 +53,18 @@ export default function ResultsSummary({
   const isComparison = Boolean(comparisonResults);
   const algMap = results ? getAlgorithmResults(results) : {};
   const algArray = Object.entries(algMap);
-  const bestByAccuracy = algArray.length
+  const bestByRocAuc = algArray.length
     ? algArray.reduce((best, cur) =>
-        cur[1].metrics.accuracy > best[1].metrics.accuracy ? cur : best
+        cur[1].metrics.roc_auc > best[1].metrics.roc_auc ? cur : best
       )
     : null;
 
   const getWinner = (withoutRes: any, withRes: any) => {
     if (!withoutRes?.metrics || !withRes?.metrics) return null;
-    // Compare mainly by accuracy, then f1_score if tie
-    const accDiff = withRes.metrics.accuracy - withoutRes.metrics.accuracy;
+    // Compare mainly by ROC-AUC (Thesis Standard), then f1_score if tie
+    const aucDiff = withRes.metrics.roc_auc - withoutRes.metrics.roc_auc;
     
-    if (Math.abs(accDiff) < 0.0001) {
+    if (Math.abs(aucDiff) < 0.0001) {
          const f1Diff = withRes.metrics.f1_score - withoutRes.metrics.f1_score;
          if (Math.abs(f1Diff) < 0.0001) return { winner: 'tie', label: 'Tie' };
          return f1Diff > 0 
@@ -72,14 +72,14 @@ export default function ResultsSummary({
             : { winner: 'without_smote', label: 'Without SMOTE', reason: 'Higher F1' };
     }
     
-    return accDiff > 0
-      ? { winner: 'with_smote', label: 'With SMOTE', reason: 'Higher Accuracy' }
-      : { winner: 'without_smote', label: 'Without SMOTE', reason: 'Higher Accuracy' };
+    return aucDiff > 0
+      ? { winner: 'with_smote', label: 'With SMOTE', reason: 'Higher ROC-AUC' }
+      : { winner: 'without_smote', label: 'Without SMOTE', reason: 'Higher ROC-AUC' };
   };
 
   return (
     <div className='space-y-6'>
-      {bestByAccuracy && (
+      {bestByRocAuc && (
         <Card className='border-0 shadow-none overflow-hidden bg-emerald-500 text-white'>
           <div className='p-5'>
             <div className='flex items-center justify-between'>
@@ -89,17 +89,17 @@ export default function ResultsSummary({
                 </div>
                 <div>
                   <div className='text-sm text-white/80 font-semibold'>
-                    Best Performing Algorithm
+                    Best Performing Algorithm (Thesis Standard)
                   </div>
                   <div className='text-xl font-serif font-bold text-white'>
-                    {bestByAccuracy[1].name}
+                    {bestByRocAuc[1].name}
                   </div>
                 </div>
               </div>
               <div className='text-right'>
-                <div className='text-xs uppercase text-white/80'>Accuracy</div>
+                <div className='text-xs uppercase text-white/80'>ROC-AUC Score</div>
                 <div className='text-2xl font-extrabold text-white'>
-                  {(bestByAccuracy[1].metrics.accuracy * 100).toFixed(1)}%
+                  {(bestByRocAuc[1].metrics.roc_auc * 100).toFixed(1)}%
                 </div>
               </div>
             </div>

@@ -1,121 +1,103 @@
-# Machine Learning Bootcamp Prediction
+# Machine Learning Bootcamp Prediction System
 
-A Next.js (App Router) app that trains ML models on a bootcamp dataset using a Python pipeline, then visualizes results and enables single-record prediction.
+Research-grade machine learning system built for Thesis Deployment. This application integrates a Next.js frontend with an advanced Python backend to predict bootcamp candidate success using the **AdaBoost (App Champion)** model.
 
-## Features
+## key Features
 
-- Upload CSV dataset with inline validation and preview
-- Select algorithms and train with or without SMOTE
-- Real Python training pipeline (scikit-learn, imbalanced-learn, xgboost, shap)
-- Comparison mode: with vs without SMOTE + improvements table
-- Best Performing Algorithm banner and radar charts
-- Results table with accuracy, precision, recall, F1, ROC-AUC
-- McNemar statistical analysis (when available)
-- Export results to JSON/CSV and academic report JSON
-- Individual Prediction form with “Train New Data” shortcut
+### 1. Training Lab (Research Mode)
+- **Advanced Pipeline**: Full scikit-learn pipeline with SMOTE Oversampling.
+- **Algorithm Comparison**: Side-by-side performance metrics for 6 algorithms (Logistic Regression, Decision Tree, KNN, SVM, AdaBoost, XGBoost).
+- **Statistical Testing**: McNemar Test integration to prove significance.
+- **Visualizations**: ROC Curves, Confusion Matrices, and Feature Importance (SHAP).
+- **Export**: JSON/CSV reports for academic analysis.
+
+### 2. Prediction System (Deployment Mode)
+- **Champion Model**: Automatically utilizes the **AdaBoost Classifier** (identified as best performer in Chapter 4).
+- **Decision Support System (DSS)**:
+  - **< 20% Probability**: Low Tier -> "Disarankan Program Persiapan (Pre-Bootcamp)".
+  - **20% - 60% Probability**: Middle Tier -> "Perlu Review Manual / Wawancara Standar".
+  - **> 60% Probability**: High Tier -> "Direkomendasikan Fast-Track".
+- **Batch Processing**: Upload new candidate CSVs for bulk feasibility analysis.
+- **Fail-Safe**: Explains feature engineering logic (e.g. IT vs Non-IT normalization).
 
 ## Tech Stack
 
-- Frontend: Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, Recharts
-- Backend: Next.js Route Handlers (Node), Python child process
-- Python: pandas, numpy, scikit-learn, imbalanced-learn, xgboost, shap, scipy
+- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS, Shadcn/UI.
+- **Backend API**: Next.js Route Handlers + Python Child Processes.
+- **ML Engine**: Python 3.10+, Scikit-learn, Imbalanced-learn, XGBoost, Joblib.
 
-## Prerequisites
+## Project Structure
 
-- Node.js 18+
-- pnpm
-- Python 3.10+
+```
+.
+├── app/
+│   ├── api/train/          # Triggers run_advanced_trainer.py
+│   ├── api/predict/        # Triggers run_predictor.py
+│   ├── page.tsx            # Training Mode UI
+│   └── prediction/         # Prediction Mode UI (Deployment Prototype)
+├── scripts/
+│   ├── advanced_ml_trainer.py  # MAIN CLASS: Pipeline logic, Training, Evaluation
+│   ├── run_advanced_trainer.py # ENTRY POINT: Training Mode CLI Wrapper
+│   └── run_predictor.py        # ENTRY POINT: Prediction Mode CLI Wrapper
+├── saved_models/           # Stores trained .joblib artifacts
+├── dataset/                # Dataset examples
+└── Thesis_Materials/       # Chapter documents (Markdown)
+```
 
-## Setup
+## Setup & Installation
 
-1. Install JS deps
-
+### 1. Install Node.js Dependencies
 ```bash
 pnpm install
 ```
 
-2. Create a Python virtualenv and install ML packages
-
+### 2. Setup Python Environment (Vital)
+The backend requires a specific python environment.
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # MacOS/Linux
+# .venv\Scripts\activate   # Windows
+
 pip install -r scripts/requirements.txt
 ```
 
-3. Verify Python runner works (optional)
-
-```bash
-python scripts/run_advanced_trainer.py --help
-```
-
-## Development
-
-Run the dev server:
-
+### 3. Run Development Server
 ```bash
 pnpm dev
 ```
+Open [http://localhost:3000](http://localhost:3000).
 
-Open http://localhost:3000.
+## Usage Guide
 
-## Usage
+### A. Training (First Step)
+1. Go to **Training Mode**.
+2. Upload `dataset_2020_2024.csv`.
+3. Select Algorithms (Recommended: Select All to see comparison).
+4. Enable **Use SMOTE** (System Recommendation).
+5. Click **Start Training**.
+   - *Note: This will generate `.joblib` files in the `saved_models/` folder.*
 
-1. Training Mode
+### B. Prediction (Deployment)
+1. Go to **Prediction Mode**.
+2. Input Candidate Data:
+   - **Age**: 17-40
+   - **Gender**: L/P
+   - **Education**: SMA/D3/S1/S2
+   - **Major**: IT / Non-IT (System auto-normalizes related majors)
+   - **Logical Test**: 0-100
+   - **Tech Result**: Pass/Fail
+3. Click **Run Prediction**.
+4. View the Decision Support recommendation Card.
 
-- Upload a CSV containing required columns: age, gender, grades, majoring, experience, logical_test_score, tech_interview_grades, class
-- Choose algorithms and toggle SMOTE or Comparison Mode
-- Click Start Training; results appear with best algorithm and charts
-
-2. Prediction Mode
-
-- Fill the participant form and click Predict Success
-- If there are no trained models, click “Train New Data” to jump to Training Mode
-
-3. Export
-
-- Export JSON, CSV, or an academic-report JSON from the results panel
-
-## Project Structure
-
-- app/
-  - api/train/route.ts: runs Python training and returns results
-  - api/predict/route.ts: mock prediction using selected models
-  - page.tsx: main UI (training + prediction)
-- components/predictor/
-  - UploadPanel.tsx, DatasetConfigCard.tsx, ResultsSummary.tsx, ExportPanel.tsx
-- components/ui/
-  - shadcn/ui components and chart helpers
-- scripts/
-  - advanced_ml_trainer.py: core training pipeline
-  - run_advanced_trainer.py: CLI wrapper; prints only JSON to stdout
-  - requirements.txt: Python deps
-
-## Environment Details
-
-- The app prefers .venv/bin/python to run training. You can override via env var PYTHON_INTERPRETER if needed.
-- Python script logs go to stderr; only JSON goes to stdout to ensure robust parsing.
-
-## CSV Format Notes
-
-- Header row + data rows required.
-- Column expectations:
-  - gender: L/P
-  - majoring: IT/Non IT
-  - experience: yes/no
-  - logical_test_score, tech_interview_grades: 0–100
-  - class: pass/failed
-
-## Troubleshooting
-
-- xgboost missing: ensure venv is active and pip install -r scripts/requirements.txt
-- JSON parse errors: confirm Python prints only JSON to stdout (use the provided wrapper)
-- Type errors: run `pnpm -s tsc --noEmit`
-
-## Scripts
-
-- Python training entry: `scripts/run_advanced_trainer.py`
-- Core trainer: `scripts/advanced_ml_trainer.py`
+## CSV Schema (for Batch Upload)
+Ensure your CSV has these headers (case-insensitive):
+- `age`: integer
+- `gender`: 'L' or 'P'
+- `grades`: 'SMA', 'D3', 'S1', 'S2'
+- `majoring`: 'IT' or 'Non IT' (or specific majors like 'Informatika' which are auto-detected)
+- `logical_test_score`: 0-100
+- `tech_interview_result`: 'Pass' or 'Fail' (or 1/0)
+- `class`: (Training only) 'pass' or 'failed'
 
 ## License
-
-MIT
+MIT - Thesis Project Only.

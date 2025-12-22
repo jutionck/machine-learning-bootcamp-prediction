@@ -11,8 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { FileText, BarChart3, Settings, Loader2, Play } from 'lucide-react';
+import { FileText, BarChart3, Loader2, Play } from 'lucide-react';
 import { algorithms } from '@/lib/constants';
 
 type Props = {
@@ -21,12 +20,8 @@ type Props = {
   selectedAlgorithms: string[];
   onToggleAlgorithm: (id: string) => void;
   onSelectAll: (type: 'conventional' | 'boosting' | 'all') => void;
-  useSmote: boolean;
-  comparisonMode: boolean;
   isTraining: boolean;
   trainingProgress: number;
-  onUseSmoteChange: (v: boolean) => void;
-  onComparisonModeChange: (v: boolean) => void;
   onStart: () => void;
 };
 
@@ -36,12 +31,8 @@ export default function DatasetConfigCard({
   selectedAlgorithms,
   onToggleAlgorithm,
   onSelectAll,
-  useSmote,
-  comparisonMode,
   isTraining,
   trainingProgress,
-  onUseSmoteChange,
-  onComparisonModeChange,
   onStart,
 }: Props) {
   const selectedCount = selectedAlgorithms.length;
@@ -60,7 +51,6 @@ export default function DatasetConfigCard({
         </CardDescription>
       </CardHeader>
       <CardContent className='space-y-8'>
-        {/* Dataset Preview */}
         {datasetPreview.length > 0 ? (
           <div>
             <div className='overflow-x-auto'>
@@ -112,7 +102,6 @@ export default function DatasetConfigCard({
           </div>
         )}
 
-        {/* Algorithm Selection */}
         <div className='space-y-4'>
           <div className='flex items-center gap-3'>
             <div className='p-2 bg-primary rounded-lg'>
@@ -224,61 +213,25 @@ export default function DatasetConfigCard({
           </div>
         </div>
 
-        {/* Training Config */}
-        <div className='space-y-4'>
-          <div className='flex items-center gap-3'>
-            <div className='p-2 bg-primary rounded-lg'>
-              <Settings className='h-5 w-5 text-white' />
-            </div>
-            <h3 className='text-lg font-serif font-bold'>
-              Training Configuration
-            </h3>
-          </div>
-
-          <div className='flex items-center space-x-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg'>
-            <Switch
-              id='smote'
-              checked={useSmote}
-              onCheckedChange={onUseSmoteChange}
-              className='data-[state=checked]:bg-primary'
-            />
-            <Label htmlFor='smote' className='font-serif font-medium'>
-              Apply SMOTE (Synthetic Minority Oversampling Technique)
-            </Label>
-          </div>
-
-          <div className='flex items-center space-x-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg'>
-            <Switch
-              id='comparison'
-              checked={comparisonMode}
-              onCheckedChange={onComparisonModeChange}
-              className='data-[state=checked]:bg-primary'
-            />
-            <Label htmlFor='comparison' className='font-serif font-medium'>
-              Comparison Mode (Train with and without SMOTE)
-            </Label>
-          </div>
-
-          <div className='pt-2'>
-            <Button
-              onClick={onStart}
-              disabled={isTraining || selectedCount === 0 || !datasetValid}
-              className='w-full bg-primary hover:bg-primary/90 text-white font-serif font-bold text-lg py-4 rounded-2xl shadow-2xl transition-all duration-300'
-              size='lg'
-            >
-              {isTraining ? (
-                <>
-                  <Loader2 className='mr-3 h-6 w-6 animate-spin' />
-                  Training Models... ({trainingProgress.toFixed(0)}%)
-                </>
-              ) : (
-                <>
-                  <Play className='mr-3 h-6 w-6' />
-                  Start Training ({selectedCount} algorithms)
-                </>
-              )}
-            </Button>
-          </div>
+        <div className='pt-2'>
+          <Button
+            onClick={onStart}
+            disabled={isTraining || selectedCount === 0 || !datasetValid}
+            className='w-full bg-primary hover:bg-primary/90 text-white font-serif font-bold text-lg py-4 rounded-2xl shadow-2xl transition-all duration-300'
+            size='lg'
+          >
+            {isTraining ? (
+              <>
+                <Loader2 className='mr-3 h-6 w-6 animate-spin' />
+                Training Models... ({trainingProgress.toFixed(0)}%)
+              </>
+            ) : (
+              <>
+                <Play className='mr-3 h-6 w-6' />
+                Start Training ({selectedCount} algorithms)
+              </>
+            )}
+          </Button>
         </div>
       </CardContent>
     </Card>

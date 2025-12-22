@@ -24,8 +24,6 @@ export const datasetAttributes = [
     description: "Education level (SMA, D3, S1, etc)",
     values: ["SMA", "D3", "S1", "S2", "S3"],
   },
-  { name: "majoring", type: "categorical", description: "Field of study", values: ["IT", "Non IT"] },
-  { name: "experience", type: "categorical", description: "Prior experience", values: ["yes", "no"] },
   {
     name: "logical_test_score",
     type: "numeric",
@@ -34,11 +32,10 @@ export const datasetAttributes = [
     max: 100,
   },
   {
-    name: "tech_interview_grades",
-    type: "numeric",
-    description: "Technical interview score (0-100, standard: 60 for next step)",
-    min: 0,
-    max: 100,
+    name: "tech_interview_result",
+    type: "categorical",
+    description: "Technical interview result (Pass/Fail)",
+    values: ["Pass", "Fail"],
   },
   { name: "class", type: "target", description: "Target variable (pass/failed)", values: ["pass", "failed"] },
 ] as const

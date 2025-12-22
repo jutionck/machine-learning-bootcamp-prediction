@@ -48,7 +48,7 @@ export default function UsageGuide() {
                 <div>
                   <h3 className="font-bold text-lg mb-1">1. Upload Data</h3>
                   <p className="text-sm text-muted-foreground">
-                    Upload a CSV file containing historical student data. The dataset must include fields for age, gender, education level, major, experience, logical test score, and technical interview score.
+                    Upload a CSV file containing historical student data. The dataset must include fields for age, gender, grades, major, logical test score, and technical interview result.
                   </p>
                 </div>
               </div>

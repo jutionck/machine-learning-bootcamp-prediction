@@ -36,9 +36,8 @@ type Props = {
     gender: string;
     grades: string;
     majoring: string;
-    experience: string;
     logical_test_score: string;
-    tech_interview_score: string;
+    tech_interview_result: string;
   };
   setPredictionData: React.Dispatch<
     React.SetStateAction<{
@@ -46,9 +45,8 @@ type Props = {
       gender: string;
       grades: string;
       majoring: string;
-      experience: string;
       logical_test_score: string;
-      tech_interview_score: string;
+      tech_interview_result: string;
     }>
   >;
   handlePrediction: () => void;
@@ -164,7 +162,9 @@ export default function PredictionPanel({
                     </div>
 
                     <div className='space-y-2.5'>
-                    <Label htmlFor='grades' className="text-sm font-semibold text-slate-700 dark:text-slate-200">Education Level</Label>
+                    <Label htmlFor='grades' className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        Education Level (Grades)
+                    </Label>
                     <select
                         id='grades'
                         className='w-full px-3 py-2 border border-input rounded-md bg-background hover:bg-accent/5 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200'
@@ -204,27 +204,6 @@ export default function PredictionPanel({
                     </div>
 
                     <div className='space-y-2.5'>
-                    <Label htmlFor='experience' className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                        Programming Experience
-                    </Label>
-                    <select
-                        id='experience'
-                        className='w-full px-3 py-2 border border-input rounded-md bg-background hover:bg-accent/5 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200'
-                        value={predictionData.experience}
-                        onChange={(e) =>
-                        setPredictionData((prev) => ({
-                            ...prev,
-                            experience: e.target.value,
-                        }))
-                        }
-                    >
-                        <option value=''>Select experience</option>
-                        <option value='yes'>Yes</option>
-                        <option value='no'>No</option>
-                    </select>
-                    </div>
-
-                    <div className='space-y-2.5'>
                     <Label htmlFor='logical_test_score' className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                         Logical Test Score (0-100)
                     </Label>
@@ -244,22 +223,24 @@ export default function PredictionPanel({
                     </div>
 
                     <div className='space-y-2.5'>
-                    <Label htmlFor='tech_interview_score' className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                        Tech Interview Score (0-100)
+                    <Label htmlFor='tech_interview_result' className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        Tech Interview Result
                     </Label>
-                    <Input
-                        id='tech_interview_score'
-                        type='number'
-                        placeholder='0-100'
-                        value={predictionData.tech_interview_score}
+                    <select
+                        id='tech_interview_result'
+                        className='w-full px-3 py-2 border border-input rounded-md bg-background hover:bg-accent/5 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200'
+                        value={predictionData.tech_interview_result}
                         onChange={(e) =>
                         setPredictionData((prev) => ({
                             ...prev,
-                            tech_interview_score: e.target.value,
+                            tech_interview_result: e.target.value,
                         }))
                         }
-                        className="focus:ring-2 focus:ring-primary/20 transition-all duration-200"
-                    />
+                    >
+                        <option value=''>Select result</option>
+                        <option value='Pass'>Pass</option>
+                        <option value='Fail'>Fail</option>
+                    </select>
                     </div>
                 </div>
 
@@ -347,7 +328,7 @@ export default function PredictionPanel({
           
           {predictionResults.batch_predictions ? (
               // Batch Results (Table)
-              <div className="rounded-md border bg-card">
+              <div className="rounded-md border bg-card shadow-sm">
                   <div className="p-4 border-b bg-muted/50">
                       <h3 className="font-semibold text-lg flex items-center gap-2">
                         <FileText className="h-5 w-5" /> 
@@ -359,7 +340,6 @@ export default function PredictionPanel({
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[50px]">#</TableHead>
-                                {/* We can infer models from the first result */}
                                 {predictionResults.batch_predictions.length > 0 && 
                                  Object.keys(predictionResults.batch_predictions[0]).sort().map(modelId => (
                                      <TableHead key={modelId} className="capitalize">{modelId}</TableHead>
@@ -394,57 +374,111 @@ export default function PredictionPanel({
                   </div>
               </div>
           ) : (
-              // Single Result (Cards)
-              <>
-                <h3 className='text-2xl font-serif font-bold text-center text-slate-800 dark:text-slate-100'>
-                    Prediction Results
-                </h3>
-                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-                    {Array.isArray(predictionResults.predictions) && predictionResults.predictions.map((pred: any, idx: number) => (
-                    <Card
-                        key={idx}
-                        className={`transform transition-all duration-500 hover:scale-105 hover:shadow-xl border-l-4 ${
-                        pred.prediction === 'pass'
-                            ? 'border-l-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/10'
-                            : 'border-l-rose-500 bg-rose-50/50 dark:bg-rose-900/10'
-                        }`}
-                    >
-                        <CardHeader>
-                        <CardTitle className='text-lg flex items-center justify-between'>
-                            <span>{pred.algorithm}</span>
-                            {pred.prediction === 'pass' ? (
-                            <CheckCircle className='h-6 w-6 text-emerald-500' />
-                            ) : (
-                            <XCircle className='h-6 w-6 text-rose-500' />
+              // Single Result (Deployment Prototype View)
+              <div className="space-y-8">
+                 {(() => {
+                    // 1. Find Champion Model (AdaBoost)
+                    const predictions = Array.isArray(predictionResults.predictions) ? predictionResults.predictions : [];
+                    const championModel = predictions.find((p: any) => p.algorithm.toLowerCase().includes('adaboost')) || predictions[0];
+                    
+                    if (!championModel) return <div>No predictions available</div>;
+
+                    // 2. Logic Tiering (Thesis Section 4.7)
+                    const prob = championModel.probability; // 0.0 - 1.0 (assuming Pass Probability)
+                    const isPass = championModel.prediction === 'pass';
+                    // Correction: ensure probability represents 'Pass' confidence. 
+                    // Usually confidence is for the predicted class. If pred is 'fail', and conf is 0.9, then Pass prob is 0.1.
+                    const passProb = isPass ? prob : (1 - prob);
+                    
+                    let tier = "";
+                    let recommendation = "";
+                    let colorClass = "";
+                    let bgClass = "";
+                    
+                    if (passProb < 0.20) {
+                        tier = "Low Tier";
+                        recommendation = "Disarankan Masuk Program Pre-Bootcamp (Persiapan)";
+                        colorClass = "text-rose-600 dark:text-rose-400";
+                        bgClass = "bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-900";
+                    } else if (passProb > 0.60) {
+                        tier = "High Tier";
+                        recommendation = "Direkomendasikan Fast-Track (Prioritas Wawancara)";
+                        colorClass = "text-emerald-600 dark:text-emerald-400";
+                        bgClass = "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-900";
+                    } else {
+                        tier = "Middle Tier";
+                        recommendation = "Perlu Review Manual / Wawancara Standar";
+                        colorClass = "text-amber-600 dark:text-amber-400";
+                        bgClass = "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-900";
+                    }
+
+                    return (
+                        <>
+                            {/* Main Champion Card */}
+                            <div className={`p-8 rounded-2xl border-2 shadow-lg ${bgClass} transition-all duration-500`}>
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <Target className={`h-6 w-6 ${colorClass}`} />
+                                            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+                                                Hasil Analisis Kelayakan
+                                            </h2>
+                                        </div>
+                                        <p className="text-muted-foreground text-lg">
+                                            Berdasarkan model <strong>{championModel.algorithm}</strong> (Champion)
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Probabilitas Sukses</div>
+                                        <div className={`text-5xl font-extrabold ${colorClass}`}>
+                                            {(passProb * 100).toFixed(1)}%
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-8 p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div>
+                                            <div className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">Kategori Kandidat</div>
+                                            <div className={`text-2xl font-bold ${colorClass}`}>{tier}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">Rekomendasi Sistem (SOP)</div>
+                                            <div className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                                                {tier === 'High Tier' && <CheckCircle className="h-5 w-5 text-emerald-500" />}
+                                                {tier === 'Low Tier' && <XCircle className="h-5 w-5 text-rose-500" />}
+                                                {tier === 'Middle Tier' && <AlertTriangle className="h-5 w-5 text-amber-500" />}
+                                                {recommendation}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Secondary Models (Collapsible or Small Grid) */}
+                            {predictions.length > 1 && (
+                                <div className="opacity-80">
+                                    <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4">Model Pembanding Lainnya</h4>
+                                    <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+                                        {predictions.filter((p: any) => p !== championModel).map((pred: any, idx: number) => (
+                                            <Card key={idx} className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                                                <CardHeader className="py-4">
+                                                    <CardTitle className='text-sm font-medium flex justify-between'>
+                                                        {pred.algorithm}
+                                                        <span className={pred.prediction === 'pass' ? 'text-green-600' : 'text-red-600'}>
+                                                            {(pred.probability * 100).toFixed(0)}%
+                                                        </span>
+                                                    </CardTitle>
+                                                </CardHeader>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
-                        </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                        <div className='space-y-2'>
-                            <div className='flex justify-between items-center'>
-                            <span className='text-muted-foreground'>Result</span>
-                            <span
-                                className={`font-bold px-3 py-1 rounded-full text-sm ${
-                                pred.prediction === 'pass'
-                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-                                    : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
-                                }`}
-                            >
-                                {pred.prediction.toUpperCase()}
-                            </span>
-                            </div>
-                            <div className='flex justify-between items-center'>
-                            <span className='text-muted-foreground'>Probability</span>
-                            <span className='font-mono font-medium'>
-                                {(pred.probability * 100).toFixed(1)}%
-                            </span>
-                            </div>
-                        </div>
-                        </CardContent>
-                    </Card>
-                    ))}
-                </div>
-              </>
+                        </>
+                    );
+                 })()}
+              </div>
           )}
         </div>
       )}
